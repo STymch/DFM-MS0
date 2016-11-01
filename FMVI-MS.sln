@@ -1,0 +1,47 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FMVI-MS", "FMVI-MS\FMVI-MS.vcxproj", "{447B9C88-9C97-4A8F-95BC-0E9AF004795D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SoftwareSerialExample", "SoftwareSerialExample\SoftwareSerialExample.vcxproj", "{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DSTemperatureSensor", "DSTemperatureSensor\DSTemperatureSensor.vcxproj", "{D9B17129-3D7E-4356-B91D-285B78DCDFEC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExternalInterrupt", "ExternalInterrupt\ExternalInterrupt.vcxproj", "{7E1C4F85-721F-42D2-80A6-A11CAF522E6F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MyArduinoSamples", "MyArduinoSamples", "{1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{447B9C88-9C97-4A8F-95BC-0E9AF004795D}.Debug|x86.ActiveCfg = Debug|Win32
+		{447B9C88-9C97-4A8F-95BC-0E9AF004795D}.Debug|x86.Build.0 = Debug|Win32
+		{447B9C88-9C97-4A8F-95BC-0E9AF004795D}.Release|x86.ActiveCfg = Release|Win32
+		{447B9C88-9C97-4A8F-95BC-0E9AF004795D}.Release|x86.Build.0 = Release|Win32
+		{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}.Debug|x86.ActiveCfg = Debug|Win32
+		{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}.Debug|x86.Build.0 = Debug|Win32
+		{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}.Release|x86.ActiveCfg = Release|Win32
+		{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}.Release|x86.Build.0 = Release|Win32
+		{D9B17129-3D7E-4356-B91D-285B78DCDFEC}.Debug|x86.ActiveCfg = Debug|Win32
+		{D9B17129-3D7E-4356-B91D-285B78DCDFEC}.Debug|x86.Build.0 = Debug|Win32
+		{D9B17129-3D7E-4356-B91D-285B78DCDFEC}.Release|x86.ActiveCfg = Release|Win32
+		{D9B17129-3D7E-4356-B91D-285B78DCDFEC}.Release|x86.Build.0 = Release|Win32
+		{7E1C4F85-721F-42D2-80A6-A11CAF522E6F}.Debug|x86.ActiveCfg = Debug|Win32
+		{7E1C4F85-721F-42D2-80A6-A11CAF522E6F}.Debug|x86.Build.0 = Debug|Win32
+		{7E1C4F85-721F-42D2-80A6-A11CAF522E6F}.Release|x86.ActiveCfg = Release|Win32
+		{7E1C4F85-721F-42D2-80A6-A11CAF522E6F}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{D9B17129-3D7E-4356-B91D-285B78DCDFEC} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{7E1C4F85-721F-42D2-80A6-A11CAF522E6F} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+	EndGlobalSection
+EndGlobal
