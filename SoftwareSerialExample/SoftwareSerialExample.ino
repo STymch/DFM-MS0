@@ -3,6 +3,7 @@
  * RX is digital pin 10 (connect to TX of other device)
  * TX is digital pin 11 (connect to RX of other device) 
  */
+
 #include <SoftwareSerial.h>
 
 const int   LED_PIN = 13;				// LED pin
@@ -41,7 +42,7 @@ void loop()
 	while (Serial.available())
 	{
 		// Read byte
-		int b = Serial.read();
+		byte b = Serial.read();
 		// Write byte to hardware COM
 		Serial.write(b);
 		// Write byte to software COM
@@ -51,7 +52,8 @@ void loop()
 	while (BTSerial.available())
 	{
 		// Read byte from software COM and then write it into hardware COM
-		Serial.write(BTSerial.read());
+		byte b = BTSerial.read();
+		Serial.write(b);	
 	}
 	 
 }
