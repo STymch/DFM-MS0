@@ -39,7 +39,7 @@ void setup() {
 void loop()
 {
 	// Read byte from hardware COM -> write it into software COM
-	while (Serial.available())
+	/*while (Serial.available())
 	{
 		// Read byte
 		byte b = Serial.read();
@@ -47,7 +47,7 @@ void loop()
 		Serial.write(b);
 		// Write byte to software COM
 		BTSerial.write(b);
-	}
+	}*/
 	// Read result of AT command from software COM
 	while (BTSerial.available())
 	{
@@ -56,4 +56,14 @@ void loop()
 		Serial.write(b);	
 	}
 	 
+}
+
+void serialEvent()
+{
+	// Read byte
+	byte b = Serial.read();
+	// Write byte to hardware COM
+	Serial.write(b);
+	// Write byte to software COM
+	BTSerial.write(b);
 }
