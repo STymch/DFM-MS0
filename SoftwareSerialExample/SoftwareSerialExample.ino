@@ -9,7 +9,7 @@ const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
 SoftwareSerial BTSerial(RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 
-byte *pBuff = new byte[100];
+byte *pBuff = new byte[256];
 int i, n;
 long lCount = 0;
 
@@ -53,8 +53,9 @@ void loop()
 	if (Serial.available() > 0) {
 		// Read length of data
 		n = Serial.read()-39;
-		Serial.println(n);
-		while (i < n) {
+		Serial.println(n+1);
+		pBuff[i++] = (byte)(n+39);
+		while (i < n+1) {
 			// Read data from hardware COM
 			while (Serial.available() > 0) {
 				// Read byte and add to buffer
@@ -65,20 +66,21 @@ void loop()
 	// Write buffer to hardware & software COM
 	if (n > 0)
 	{
-		Serial.print("i1="); Serial.println(n);
-		Serial.write(pBuff,n);
+		Serial.print("i1="); Serial.println(n+1);
+		Serial.write(pBuff,n+1);
 		Serial.println();
 		
-		BTSerial.write(pBuff, n);
+		BTSerial.write(pBuff, n+1);
 		i = n = 0;
 	}
 
 	// Read data from software COM
 	if (BTSerial.available() > 0) {
 		// Read length of data
-		n = BTSerial.read()-39;
-		if (n > 100) n = 0;
-		while (i < n) {
+		n = BTSerial.read();
+		Serial.print("N="); Serial.print(n);
+		pBuff[i++] = (byte)n;
+		while (i < n+1) {
 			// Read data from software COM
 			while (BTSerial.available() > 0) {
 				// Read byte and add to buffer
@@ -89,9 +91,11 @@ void loop()
 	// Write buffer to software COM
 	if (n > 0)
 	{
-		Serial.print("Count="); Serial.println(++lCount);
-		
-		BTSerial.write(pBuff, n);
+		Serial.print(" Count=");	Serial.print(++lCount);
+		Serial.print(" Buff=");		Serial.write(pBuff, n+1);
+		Serial.println();
+
+		BTSerial.write(pBuff, n+1);
 		i = n = 0;
 	}
 }
