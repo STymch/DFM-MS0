@@ -1,4 +1,7 @@
-﻿// SoftwareSerial library
+﻿
+#include "CommDef.h"
+
+// SoftwareSerial library
 #include <SoftwareSerial.h>
 
 const int   LED_PIN = 13;				// LED pin
@@ -10,15 +13,15 @@ const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 SoftwareSerial BTSerial(RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 
 byte *pBuff = new byte[256];
-int i, n;
+UINT i, n;
 long lCount = 0;
 
 struct StatusByte {
-	unsigned b0 : 1;
-	unsigned b1 : 1;
-	unsigned b2 : 1;
-	unsigned b3 : 1;
-	unsigned b4_7 : 4;
+	UINT b0 : 1;
+	UINT b1 : 1;
+	UINT b2 : 1;
+	UINT b3 : 1;
+	UINT b4_7 : 4;
 };
 
 StatusByte bits;
