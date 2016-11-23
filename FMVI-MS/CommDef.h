@@ -10,26 +10,14 @@
 	#include "WProgram.h"
 #endif
 
-/*class CommDefClass
-{
- protected:
-
-
- public:
-	void init();
-};
-
-extern CommDefClass CommDef;*/
-
-
 // --- ТИПЫ ДАННЫХ
-typedef		unsigned			char	BYTE;
-typedef		unsigned			short	WORD;
-typedef		unsigned			int		UINT;
-typedef		signed				int		INT;
-typedef		unsigned			long	DWORD;
-typedef							float	FLOAT;
-typedef		unsigned	long	long	QWORD;
+typedef		unsigned			char	BYTE;	// 1 byte
+typedef		unsigned			short	WORD;	// 2 byte
+typedef		unsigned			int		UINT;	// 2 byte
+typedef		signed				int		INT;	// 2 byte
+typedef		unsigned			long	DWORD;	// 4 byte
+typedef							float	FLOAT;	// 4 byte
+typedef		unsigned	long	long	QWORD;	// 8 byte
 
 // --- МАКРОСЫ
 // - сравнение числовых величин
@@ -56,27 +44,11 @@ typedef		unsigned	long	long	QWORD;
 #define MKDWORD(wh,wl) ( (DWORD)(((WORD)(wl)) | (((DWORD)((WORD)(wh)))<<16)) )
 
 // - специальная манипуляция битами в BYTE
-#define GETBIT(B, n)  ( ( ((BYTE)(B)) & (1<<(n)) ) >> (n) ) /* get bit number n from byte */
-#define PUTBIT(B,b,n) ( (b) ? ( (B)|=(1<<(n)) ):( (B)&=(~(1<<(n))) ) ) /* put bit number n into byte */
+#define READBIT(B,n)	( ( ((BYTE)(B)) & (1<<(n)) ) >> (n) )				/* read bit number n from byte */
+#define WRITEBIT(B,n,b) ( (b) ? ( (B)|=(1<<(n)) ):( (B)&=(~(1<<(n))) ) )	/* write bit number n into byte */
+#define SETBIT(B,n)		( (B)|=(1<<(n)) ) 									/* write 1 into bit number n into byte */
+#define CLEARBIT(B,n)	( (B)&=(~(1<<(n))) )								/* write 0 into bit number n into byte */
 
-
-// --- Команды 
-// --- Формат ( 4 байта ) : [ code ][ op1 ][ op2 ][ op3 ]
-struct CCommand
-{
-	BYTE m_bCode; // код команды
-	BYTE m_bOp1; // первый операнд
-	BYTE m_bOp2; // второй операнд
-	BYTE m_bOp3; // третий операнд
-};
-// --- Создание команды из ее компонентов
-inline void CMND(CCommand* cmnd, BYTE code = 0, BYTE op1 = 0, BYTE op2 = 0, BYTE op3 = 0)
-{
-	cmnd->m_bCode = code; // код
-	cmnd->m_bOp1 = op1; // первый операнд
-	cmnd->m_bOp2 = op2; // второй операнд
-	cmnd->m_bOp3 = op3; // третий операнд
-}
 
 #endif	// _COMMDEF_h
 

@@ -30,9 +30,17 @@ union UStatusByte {
 	StatusByte bStatus;
 };
 UStatusByte uByte;
+int nTypeSerial = 1; // 0 - hardware, 1 - software
+
+
 
 void setup() {
-  // Define pin modes for software TX, RX:
+
+uByte.bByte = 0; uByte.bStatus.b0 = 1; uByte.bStatus.b1 = 1; uByte.bStatus.b2 = 1; uByte.bStatus.b4_7 = 15;
+
+
+
+// Define pin modes for software TX, RX:
   pinMode(RX_PIN, INPUT);
   pinMode(TX_PIN, OUTPUT);
   
@@ -42,12 +50,30 @@ void setup() {
   // Wait for serial port to connect. Needed for native USB port only
   while (!Serial);
   Serial.println("Starting hardware COM!");
+  Serial.println(uByte.bByte, HEX);
+  Serial.println(sizeof(BYTE));
+  Serial.println(sizeof(WORD));
+  Serial.println(sizeof(UINT));
+  Serial.println(sizeof(INT));
+  Serial.println(sizeof(DWORD));
+  Serial.println(sizeof(FLOAT));
+  Serial.println(sizeof(QWORD));
+
+  Serial.println();
+
+  Serial.println(sizeof(uint8_t));
+  Serial.println(sizeof(uint16_t));
+  Serial.println(sizeof(uint32_t));
+  Serial.println(sizeof(uint64_t));
+  
   delay(1000);
 
   // Set the data rate and open software COM port:
-  BTSerial.begin(DR_SOFTWARE_COM);
-  // BTSerial.println("Starting BT software COM");
-  delay(1000);
+  if (nTypeSerial == 1) {
+	  BTSerial.begin(DR_SOFTWARE_COM);
+	  // BTSerial.println("Starting BT software COM");
+	  delay(1000);
+    }
 }
 
 void loop()

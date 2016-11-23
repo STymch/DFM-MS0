@@ -23,6 +23,9 @@
 //		
 /////////////////////////////////////////////////////////////////////////////////
 
+#include "CSerialPort.h"
+#include "CSerialPort.h"
+#include "CommDef.h"
 #include <EEPROM.h>		
 #include <OneWire.h>
 #include <SoftwareSerial.h>
