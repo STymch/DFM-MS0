@@ -10,7 +10,7 @@ const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
-SoftwareSerial BTSerial(RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
+SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 
 byte *pBuff = new byte[256];
 UINT i, n;
@@ -30,13 +30,14 @@ union UStatusByte {
 	StatusByte bStatus;
 };
 UStatusByte uByte;
-int nTypeSerial = 1; // 0 - hardware, 1 - software
+// int nTypeSerial = 1; // 0 - hardware, 1 - software
 
 
 
 void setup() {
 
 uByte.bByte = 0; uByte.bStatus.b0 = 1; uByte.bStatus.b1 = 1; uByte.bStatus.b2 = 1; uByte.bStatus.b4_7 = 15;
+int nTypeSerial = 1; // 0 - hardware, 1 - software
 
 
 
@@ -70,7 +71,8 @@ uByte.bByte = 0; uByte.bStatus.b0 = 1; uByte.bStatus.b1 = 1; uByte.bStatus.b2 = 
 
   // Set the data rate and open software COM port:
   if (nTypeSerial == 1) {
-	  BTSerial.begin(DR_SOFTWARE_COM);
+	  BTSerial = new SoftwareSerial(RX_PIN, TX_PIN);
+	  BTSerial->begin(DR_SOFTWARE_COM);
 	  // BTSerial.println("Starting BT software COM");
 	  delay(1000);
     }
@@ -78,6 +80,14 @@ uByte.bByte = 0; uByte.bStatus.b0 = 1; uByte.bStatus.b1 = 1; uByte.bStatus.b2 = 
 
 void loop()
 {
+	// BTSerial = new SoftwareSerial(RX_PIN, TX_PIN);
+	int nTypeSerial = 1; // 0 - hardware, 1 - software
+	if (nTypeSerial == 1) {
+		BTSerial->begin(DR_SOFTWARE_COM);
+		// BTSerial.println("Starting BT software COM");
+		delay(1000);
+	}
+
 	i = n = 0;
 	if (Serial.available() > 0) {
 		// Read length of data
@@ -99,21 +109,21 @@ void loop()
 		Serial.write(pBuff,n+1);
 		Serial.println();
 		
-		BTSerial.write(pBuff, n+1);
+		BTSerial->write(pBuff, n+1);
 		i = n = 0;
 	}
 
 	// Read data from software COM
-	if (BTSerial.available() > 0) {
+	if (BTSerial->available() > 0) {
 		// Read length of data
-		n = BTSerial.read();
+		n = BTSerial->read();
 		Serial.print("N="); Serial.print(n);
 		pBuff[i++] = (byte)n;
 		while (i < n+1) {
 			// Read data from software COM
-			while (BTSerial.available() > 0) {
+			while (BTSerial->available() > 0) {
 				// Read byte and add to buffer
-				pBuff[i++] = BTSerial.read();
+				pBuff[i++] = BTSerial->read();
 			}
 		}
 	}
@@ -124,7 +134,7 @@ void loop()
 		Serial.print(" Buff=");		Serial.write(pBuff, n+1);
 		Serial.println();
 
-		BTSerial.write(pBuff, n+1);
+		BTSerial->write(pBuff, n+1);
 		i = n = 0;
 	}
 }

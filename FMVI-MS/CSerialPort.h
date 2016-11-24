@@ -14,18 +14,19 @@
 ///////////////////////////////////////////////////////
 class CSerialPort
 {
-	const long  DR_COM;			// Data rate for serial COM
-	const INT	TYPE_COM_BT;	// Type of Arduino serial COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
-	const INT	RX_PIN;			// Software UART RX pin, connect to TX of Bluetooth modem
-	const INT	TX_PIN;			// Software UART TX pin, connect to RX of Bluetooth modem
-	const BYTE	CONTACT_BYTE;	// Byte for establish contact with remote side
-	const UINT	CONTACT_DELAY;	// Delay in mls before repeat send byte
-
 protected:
-	SoftwareSerial m_SSerial;	// SoftwareSerial UART
+	long	m_lDataRate;				// Data rate for serial COM
+	INT		m_nTypeOfCOM_BT;			// Type of Arduino COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
+	INT		m_nRX_PIN;					// Software UART RX pin, connect to TX of Bluetooth modem
+	INT		m_nTX_PIN;					// Software UART TX pin, connect to RX of Bluetooth modem
+	BYTE	m_bContactByte;				// Byte for establish contact with remote side
+	UINT	m_nSendContactByteDelay;	// Delay in mls before repeat send byte
+	long	m_lSerialTimeout;			// Maximum milliseconds to wait for serial data when using Read(BYTE*)
+
+	SoftwareSerial* m_pSSerial;			// SoftwareSerial COM
 
 public:
-	// Types of Bluetooth modem's COM port
+	// Names of types of Bluetooth modem's COM port
 	enum TypeCOMofBT{isCOMofBT_Hardware=0, isCOMofBT_Software = 1};
 
 	// Constructor, destructor
@@ -39,12 +40,15 @@ public:
 	
 	// Sends a byte with the special value and repeats that until it gets a serial response from the remote sidee. 
 	void CSerialPort::EstablishContact();
+	void SetContactByte(BYTE b) { CONTACT_BYTE = b; }
 
 	// Read byte from COM port
-	BYTE Read();
-	// Reads bytes from the COM port into an array
-	BYTE Read(BYTE*, UINT);
-	
+	INT Read();
+	// Reads bytes from the COM port into an array, first byte is length of data after it
+	INT Read(BYTE*);
+	// Set the maximum milliseconds to wait for serial data when using Read(BYTE*)
+	vod SetReadTimeout(long){}
+
 	// Write byte into COM port
 	void Write(BYTE);
 	// Write bytes from array into COM port

@@ -4,7 +4,7 @@
 
 #include "CSerialPort.h"
 
-// Initialisation of COM port
+// Initialisation of COM port: set data rate of COM port
 void CSerialPort::init()
 {
 	if (TYPE_COM_BT == isCOMofBT_Software) m_SSerial.begin(DR_COM);	// Arduino SoftwareSerial COM 
@@ -30,8 +30,9 @@ void CSerialPort::EstablishContact() {
 		}
 }
 // Read byte from COM port
-BYTE CSerialPort::Read() {
-	BYTE b = 0;
+// Return:	-1	- byte no read, else - reading byte 	
+INT CSerialPort::Read() {
+	INT b = -1;
 
 	if (TYPE_COM_BT == isCOMofBT_Software) {
 		if (m_SSerial.available() > 0) b = m_SSerial.read();	// Arduino SoftwareSerial COM 
@@ -42,21 +43,23 @@ BYTE CSerialPort::Read() {
 	return b;
 }
 // Reads bytes from the COM port into an array. First byte is quantity of bytes after this 
-BYTE Read(BYTE* pBuffer) {
-	BYTE n;		// length of array after first byte
-	UINT i = 0;
+// Return:	-1	- byte no read, else - reading byte 	
+INT CSerialPort::Read(BYTE* pBuffer) {
+	INT		len;			// length of array after first byte
+	INT		b;				// Reading byte
+	INT		retcode = -1;	// Return code
+	UINT	i = 0;			// Index in array
 
-	if (TYPE_COM_BT == isCOMofBT_Software{			// Arduino SoftwareSerial COM 
-		n = Read();	pBuffer[i++] = n;
-		while (i < b + 1) {
-
+	if ((len = Read()) > 0) {			// Read first byte - length of data after it
+		pBuffer[i++] = (BYTE)len;		// Save first byte (length) into output array
+		while (i < len + 1) {			// Read len bytes and save it into output array
+				if( (b = Read()) > 0) pBuffer[i++] = (BYTE)b;
+				else 
 		}
 	
-	
-	}
-	else bytes = Serial.readBytes(pBuffer, bLength);	// Arduino Hardware COM port
-
-	return bytes;
+	}									// No data, return -1
+		
+	return retcode;
 }
 
 // Write byte into COM port

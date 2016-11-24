@@ -24,11 +24,15 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CSerialPort.h"
-#include "CSerialPort.h"
 #include "CommDef.h"
 #include <EEPROM.h>		
 #include <OneWire.h>
 #include <SoftwareSerial.h>
+
+// Global variables from EEPROM:
+
+
+
 
 // Глобальные константы
 const int   LED_PIN         = 13;     // номер выхода, к которому подключен светодиод
