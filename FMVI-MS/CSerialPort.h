@@ -9,6 +9,8 @@
 #include "WProgram.h"
 #endif
 
+#include "CommDef.h"
+
 ///////////////////////////////////////////////////////
 // <<< CSerialPort - class for Arduino Serial COM port
 ///////////////////////////////////////////////////////
@@ -34,7 +36,7 @@ public:
 	~CSerialPort()	{}
 	
 	// Initialisation of SerialPort
-	void init(); (long, INT, INT, INT, BYTE UINT, long);
+	void Init(long, INT, INT, INT, BYTE, UINT, long);
 	
 	// Sends a byte with the special value and repeats that until it gets a serial response from the remote sidee. 
 	void EstablishContact();
@@ -44,7 +46,7 @@ public:
 	// Reads bytes from the COM port into an array, first byte is length of data after it
 	INT Read(BYTE*);
 	// Set the maximum milliseconds to wait for serial data when using Read(BYTE*)
-	vod SetReadTimeout(long lTimeout) {m_lSerialTimeout = lTimeout;}
+	void SetReadTimeout(long lTimeout) {m_lSerialTimeout = lTimeout;}
 
 	// Write byte into COM port
 	void Write(BYTE);

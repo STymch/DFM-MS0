@@ -5,7 +5,7 @@
 #include "CSerialPort.h"
 
 // Initialisation of COM port: set data rate of COM port
-void CSerialPort::init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT nDelay, long lTimeout)
+void CSerialPort::Init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT nDelay, long lTimeOut)
 {
 //	m_lDataRate	= lDR_COM;				// Data rate for serial COM
 	m_nTypeOfCOM_BT = nTypeCOM;			// Type of Arduino COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
@@ -49,7 +49,7 @@ INT CSerialPort::Read() {
 	INT b = -1;
 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) {
-		if (m_pSSerial->available() > 0) b = m_pSSerial.read();	// Arduino SoftwareSerial COM 
+		if (m_pSSerial->available() > 0) b = m_pSSerial->read();	// Arduino SoftwareSerial COM 
 	}
 	else
 		if (Serial.available() > 0) b = Serial.read();			// Arduino Hardware COM port
