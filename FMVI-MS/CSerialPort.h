@@ -15,10 +15,10 @@
 class CSerialPort
 {
 protected:
-	long	m_lDataRate;				// Data rate for serial COM
+	//long	m_lDataRate;				// Data rate for serial COM
 	INT		m_nTypeOfCOM_BT;			// Type of Arduino COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
-	INT		m_nRX_PIN;					// Software UART RX pin, connect to TX of Bluetooth modem
-	INT		m_nTX_PIN;					// Software UART TX pin, connect to RX of Bluetooth modem
+	//INT		m_nRX_PIN;					// Software UART RX pin, connect to TX of Bluetooth modem
+	//INT		m_nTX_PIN;					// Software UART TX pin, connect to RX of Bluetooth modem
 	BYTE	m_bContactByte;				// Byte for establish contact with remote side
 	UINT	m_nSendContactByteDelay;	// Delay in mls before repeat send byte
 	long	m_lSerialTimeout;			// Maximum milliseconds to wait for serial data when using Read(BYTE*)
@@ -30,24 +30,21 @@ public:
 	enum TypeCOMofBT{isCOMofBT_Hardware=0, isCOMofBT_Software = 1};
 
 	// Constructor, destructor
-	CSerialPort(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT delay) :
-		DR_COM(lDR_COM), TYPE_COM_BT(nTypeCOM), RX_PIN(nRX), TX_PIN(nTX), 
-		CONTACT_BYTE(b), CONTACT_DELAY(delay), m_SSerial(nRX, nTX) {}
-	~CSerialPort() {}
+	CSerialPort()	{}
+	~CSerialPort()	{}
 	
-	// Initialisation of COM port
-	void init();
+	// Initialisation of SerialPort
+	void init(); (long, INT, INT, INT, BYTE UINT, long);
 	
 	// Sends a byte with the special value and repeats that until it gets a serial response from the remote sidee. 
-	void CSerialPort::EstablishContact();
-	void SetContactByte(BYTE b) { CONTACT_BYTE = b; }
-
+	void EstablishContact();
+	
 	// Read byte from COM port
 	INT Read();
 	// Reads bytes from the COM port into an array, first byte is length of data after it
 	INT Read(BYTE*);
 	// Set the maximum milliseconds to wait for serial data when using Read(BYTE*)
-	vod SetReadTimeout(long){}
+	vod SetReadTimeout(long lTimeout) {m_lSerialTimeout = lTimeout;}
 
 	// Write byte into COM port
 	void Write(BYTE);

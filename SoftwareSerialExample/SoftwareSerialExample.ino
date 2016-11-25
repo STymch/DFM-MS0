@@ -12,6 +12,7 @@ const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
 SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 
+
 byte *pBuff = new byte[256];
 UINT i, n;
 long lCount = 0;
