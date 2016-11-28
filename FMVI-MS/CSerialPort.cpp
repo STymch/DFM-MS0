@@ -7,10 +7,10 @@
 // Initialisation of COM port: set data rate of COM port
 void CSerialPort::Init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT nDelay, long lTimeOut)
 {
-//	m_lDataRate	= lDR_COM;				// Data rate for serial COM
+	m_lDataRate	= lDR_COM;				// Data rate for serial COM
 	m_nTypeOfCOM_BT = nTypeCOM;			// Type of Arduino COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
-//	m_nRX_PIN = nRX;					// Software UART RX pin, connect to TX of Bluetooth modem
-//	m_nTX_PIN = nTX;					// Software UART TX pin, connect to RX of Bluetooth modem
+	m_nRX_PIN = nRX;					// Software UART RX pin, connect to TX of Bluetooth modem
+	m_nTX_PIN = nTX;					// Software UART TX pin, connect to RX of Bluetooth modem
 	m_bContactByte = b;					// Byte for establish contact with remote side
 	m_nSendContactByteDelay = nDelay;	// Delay in mls before repeat send byte
 	m_lSerialTimeout = lTimeOut;		// Maximum milliseconds to wait for serial data when using Read(BYTE*)
@@ -19,13 +19,13 @@ void CSerialPort::Init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UIN
 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software)	// Arduino SoftwareSerial COM 
 	{
-		m_pSSerial = new SoftwareSerial(nRX, nTX);	// Create SoftwareSerial COM
-		m_pSSerial->begin(lDR_COM);					// Initialization of COM 
+		m_pSSerial = new SoftwareSerial(m_nRX_PIN, m_nTX_PIN);	// Create SoftwareSerial COM
+		m_pSSerial->begin(m_lDataRate);					// Initialization of COM 
 	}
 	else										// Arduino Hardware COM port
 	{
-		Serial.begin(lDR_COM);	// Initialization of COM 
-		while (!Serial) {}		// Wait for serial port to connect. Needed for native USB
+		Serial.begin(m_lDataRate);	// Initialization of COM 
+		while (!Serial) {}			// Wait for serial port to connect. Needed for native USB
 	}
 
 }
@@ -49,7 +49,7 @@ INT CSerialPort::Read() {
 	INT b = -1;
 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) {
-		if (m_pSSerial->available() > 0) b = m_pSSerial->read();	// Arduino SoftwareSerial COM 
+		if (m_pSSerial->available() > 0) b = m_pSSerial->read();// Arduino SoftwareSerial COM 
 	}
 	else
 		if (Serial.available() > 0) b = Serial.read();			// Arduino Hardware COM port

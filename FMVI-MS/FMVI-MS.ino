@@ -29,11 +29,42 @@
 #include <OneWire.h>
 #include <SoftwareSerial.h>
 
-// Global variables from EEPROM:
 
+const int   LED_PIN = 13;				// LED pin
+const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-05 
+const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
+const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
+const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
+// Global variables:
+byte *pBuff = new byte[256];
+UINT i, n;
+long lCount = 0;
+int nTypeSerial = 1; // 0 - hardware, 1 - software
 
+CSerialPort* pBTSerialPort, pHSerialPort;
 
+void setup() {
+
+	
+	 // Define pin modes for software TX, RX:
+	pinMode(RX_PIN, INPUT);
+	pinMode(TX_PIN, OUTPUT);
+
+	pHSerialPort = new CSerialPort();
+	pBTSerialPort = new CSerialPort();
+
+	pHSerialPort->Init(DR_HARDWARE_COM, 0, 0, 1, 0, 300, 1000);
+	pBTSerialPort->Init(DR_SOFTWARE_COM, nTypeSerial, RX_PIN, TX_PIN, 0, 300, 1000);
+		
+	pHSerialPort->println("Starting hardware COM!");
+	delay(1000);
+
+	pBTSerialPort->println("Starting BT software COM");
+	delay(1000);
+}
+
+/*
 // Глобальные константы
 const int   LED_PIN         = 13;     // номер выхода, к которому подключен светодиод
 //const int   OPTO_SENSOR_PIN = 2;      // номер входа, к которому подключен оптоэлектронный датчик    
@@ -70,9 +101,6 @@ void loop()
   boolean bLED = false; // индикация светодиода 
   
   // Получение параметров водосчетчика
-  /* чиатем данные из последовательного порта
-   *  
-   */
   
   // Ожидание команды из последовательного порта на начало подсчета оборотов сигнальной звездочки
   // ожидаем появления данных в последовательном порту
@@ -88,35 +116,36 @@ void loop()
   // считываем байт данных
   if (nInpByte == 49)
   {  
-    Serial.println("Counting sensor pulse...");
-    lCounter = 0;
-    while (nInpByte != 50)
-    {
-      do{
-          nSensorStatus = digitalRead(OPTO_SENSOR_PIN);
-          nInpByte = Serial.read();
-      } while (nSensorStatus == HIGH && nInpByte != 50);
-      if (nInpByte == 50) break;
-      else {digitalWrite(LED_PIN, bLED); bLED = !bLED;} // индикация светодиода
+	Serial.println("Counting sensor pulse...");
+	lCounter = 0;
+	while (nInpByte != 50)
+	{
+	  do{
+		  nSensorStatus = digitalRead(OPTO_SENSOR_PIN);
+		  nInpByte = Serial.read();
+	  } while (nSensorStatus == HIGH && nInpByte != 50);
+	  if (nInpByte == 50) break;
+	  else {digitalWrite(LED_PIN, bLED); bLED = !bLED;} // индикация светодиода
 
-      while (nSensorStatus == LOW && nInpByte != 50)
-      {
-          nSensorStatus = digitalRead(OPTO_SENSOR_PIN);
-          nInpByte = Serial.read();
-      }
-      if (nInpByte == 50) break;
-      else 
-      {
-        digitalWrite(LED_PIN, bLED); bLED = !bLED;
-        lCounter++; Serial.println (lCounter);
-      } 
-    }
-    
-    Serial.print("Finished:");
-    // Serial.println (nInpByte);
-    Serial.println (lCounter);
+	  while (nSensorStatus == LOW && nInpByte != 50)
+	  {
+		  nSensorStatus = digitalRead(OPTO_SENSOR_PIN);
+		  nInpByte = Serial.read();
+	  }
+	  if (nInpByte == 50) break;
+	  else 
+	  {
+		digitalWrite(LED_PIN, bLED); bLED = !bLED;
+		lCounter++; Serial.println (lCounter);
+	  } 
+	}
+	
+	Serial.print("Finished:");
+	// Serial.println (nInpByte);
+	Serial.println (lCounter);
   
   }
 
 }
 
+*/
