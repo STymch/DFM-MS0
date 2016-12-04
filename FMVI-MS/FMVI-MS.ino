@@ -20,7 +20,6 @@
 //		loop()					- бесконечный рабочий цикл системы
 //  - локальные функции:
 //		ReadTemperatureDS ( )	- запрос температуры среды из датчика типа DS18B20
-//		
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CSerialPort.h"
@@ -37,32 +36,46 @@ const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
 // Global variables:
-byte *pBuff = new byte[256];
+BYTE *pBuff = new byte[sizeof(BYTE)];
 UINT i, n;
 long lCount = 0;
 int nTypeSerial = 1; // 0 - hardware, 1 - software
 
-CSerialPort* pBTSerialPort, pHSerialPort;
+// Global objects
+// Serial ports
+CSerialPort		*pBTSerialPort,	// For bluetooth modem 
+				*pHSerialPort;	// Yardware port
 
-void setup() {
-
-	
-	 // Define pin modes for software TX, RX:
-	pinMode(RX_PIN, INPUT);
-	pinMode(TX_PIN, OUTPUT);
-
+void setup() 
+{
+	// Create objects of FMVI-MS:
 	pHSerialPort = new CSerialPort();
-	pBTSerialPort = new CSerialPort();
+	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 
-	pHSerialPort->Init(DR_HARDWARE_COM, 0, 0, 1, 0, 300, 1000);
-	pBTSerialPort->Init(DR_SOFTWARE_COM, nTypeSerial, RX_PIN, TX_PIN, 0, 300, 1000);
+	pHSerialPort->Init(DR_HARDWARE_COM, 0);
+	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
 		
-	pHSerialPort->println("Starting hardware COM!");
+	pHSerialPort->Write("Starting hardware COM!",21);
 	delay(1000);
 
-	pBTSerialPort->println("Starting BT software COM");
+	pBTSerialPort->Write("Starting BT software COM", 24);
 	delay(1000);
 }
+
+void loop()
+{
+
+	// Read data from hardware port, write into bluetooth port
+	if ((n = pHSerialPort->Read(pBuff)) > 0) pBTSerialPort->Write(pBuff, n);
+
+	// Read data from bluetooth port, write into hardware port and back to bluetooth
+	if ((n = pBTSerialPort->Read(pBuff)) > 0) {
+		pHSerialPort->Write(pBuff, n);
+		pBTSerialPort->Write(pBuff, n);
+		lCount++;
+	}
+}
+	
 
 /*
 // Глобальные константы

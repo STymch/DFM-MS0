@@ -4,24 +4,33 @@
 
 #include "CSerialPort.h"
 
-// Initialisation of COM port: set data rate of COM port
-void CSerialPort::Init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT nDelay, long lTimeOut)
-{
-	m_lDataRate	= lDR_COM;				// Data rate for serial COM
+// Constructor
+CSerialPort::CSerialPort(INT nTypeCOM, INT nRX, INT nTX) {
 	m_nTypeOfCOM_BT = nTypeCOM;			// Type of Arduino COM of Bluetooth modem: 0-Hardware COM (RX=0, TX=1), 1-Software  
 	m_nRX_PIN = nRX;					// Software UART RX pin, connect to TX of Bluetooth modem
 	m_nTX_PIN = nTX;					// Software UART TX pin, connect to RX of Bluetooth modem
+
+										// Define pin modes for software TX, RX:
+	pinMode(m_nRX_PIN, INPUT);
+	pinMode(m_nTX_PIN, OUTPUT);
+
+	// Arduino SoftwareSerial COM 
+	if (m_nTypeOfCOM_BT == isCOMofBT_Software)
+		m_pSSerial = new SoftwareSerial(m_nRX_PIN, m_nTX_PIN);	// Create SoftwareSerial COM
+	else m_pSSerial = NULL;
+}
+// Initialisation of COM port: set data rate of COM port
+void CSerialPort::Init(long lDR_COM, BYTE b, UINT nDelay, long lTimeOut)
+{
+	m_lDataRate	= lDR_COM;				// Data rate for serial COM
 	m_bContactByte = b;					// Byte for establish contact with remote side
 	m_nSendContactByteDelay = nDelay;	// Delay in mls before repeat send byte
 	m_lSerialTimeout = lTimeOut;		// Maximum milliseconds to wait for serial data when using Read(BYTE*)
 	
 	
-
+	// Initialization of COM 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software)	// Arduino SoftwareSerial COM 
-	{
-		m_pSSerial = new SoftwareSerial(m_nRX_PIN, m_nTX_PIN);	// Create SoftwareSerial COM
-		m_pSSerial->begin(m_lDataRate);					// Initialization of COM 
-	}
+		m_pSSerial->begin(m_lDataRate);			// Initialization of COM 
 	else										// Arduino Hardware COM port
 	{
 		Serial.begin(m_lDataRate);	// Initialization of COM 
@@ -57,7 +66,7 @@ INT CSerialPort::Read() {
 	return b;
 }
 // Reads bytes from the COM port into an array. First byte is quantity of bytes after this 
-// Return:	0 - all bytes read, -1	- bytes no read, -2 - less of data with read 	
+// Return:	number of read bytes; -1 - bytes no read; -2 - less of data with read. 	
 INT CSerialPort::Read(BYTE* pBuffer) {
 	INT		len;			// length of array after first byte
 	INT		b;				// Reading byte
@@ -70,12 +79,12 @@ INT CSerialPort::Read(BYTE* pBuffer) {
 		pBuffer[i++] = (BYTE)len;		// Save first byte (length) into output array
 		dwTime = micros();				// Get current time in microsec
 		// Read len bytes and save it into output array
-		while (i < len + 1 && LessEqual (micros(), dwTime+m_lSerialTimeout) {			
+		while (i < len + 1 && LessEqual (micros(), dwTime+m_lSerialTimeout) ) {			
 			// If available - read byte, else - waiting timeout
 			if( (b = Read()) > 0) pBuffer[i++] = (BYTE)b;					
 		}
 		if (i == len + 1)	
-			retcode = 0;	// Read all bytes successfully
+			retcode = i;	// Read all bytes successfully
 		else
 			retcode = -2;	// Timeout when read byte
 	}
@@ -96,5 +105,5 @@ void CSerialPort::Write(BYTE* pBuffer, UINT nLength) {
 
 
 
-CSerialPort* pSerialPort;
+//CSerialPort* pSerialPort;
 

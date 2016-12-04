@@ -10,6 +10,7 @@
 #endif
 
 #include "CommDef.h"
+#include <SoftwareSerial.h>
 
 ///////////////////////////////////////////////////////
 // <<< CSerialPort - class for Arduino Serial COM port
@@ -32,11 +33,12 @@ public:
 	enum TypeCOMofBT{isCOMofBT_Hardware=0, isCOMofBT_Software = 1};
 
 	// Constructor, destructor
-	CSerialPort()	{}
+	CSerialPort(INT nTypeCOM, INT nRX, INT nTX);
+	CSerialPort() { m_pSSerial = NULL; m_nTypeOfCOM_BT = 0;  m_nRX_PIN = 0; m_nTX_PIN = 1; }
 	~CSerialPort() { if (m_pSSerial != NULL) delete m_pSSerial; }
 	
 	// Initialisation of SerialPort
-	void Init(long lDR_COM, INT nTypeCOM, INT nRX, INT nTX, BYTE b, UINT nDelay, long lTimeOut);
+	void Init(long lDR_COM, BYTE b, UINT nDelay = 500, long lTimeOut = 1000);
 	
 	// Sends a byte with the special value and repeats that until it gets a serial response from the remote sidee. 
 	void EstablishContact();
@@ -52,11 +54,9 @@ public:
 	void Write(BYTE);
 	// Write bytes from array into COM port
 	void Write(BYTE*, UINT);
-	
-	using SoftwareSerial::println;
 };
 
-extern CSerialPort* pCSerialPort;	//			
+//extern CSerialPort* pSerialPort;	//			
 
 #endif
 
