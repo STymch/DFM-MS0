@@ -35,7 +35,7 @@ public:
 	// Constructor, destructor
 	CSerialPort(INT nTypeCOM, INT nRX, INT nTX);
 	CSerialPort() { m_pSSerial = NULL; m_nTypeOfCOM_BT = 0;  m_nRX_PIN = 0; m_nTX_PIN = 1; }
-	~CSerialPort() { if (m_pSSerial != NULL) delete m_pSSerial; }
+	~CSerialPort() { }
 	
 	// Initialisation of SerialPort
 	void Init(long lDR_COM, BYTE b, UINT nDelay = 500, long lTimeOut = 1000);
@@ -44,16 +44,21 @@ public:
 	void EstablishContact();
 	
 	// Read byte from COM port
+	// Return:	-1	- no byte read, else - reading byte 	
 	INT Read();
-	// Reads bytes from the COM port into an array, first byte is length of data after it
-	INT Read(BYTE*);
+	// Read data from COM port into byte array. First byte = SIZE of data, array must be [SIZE+1]. 
+	// Return:	>0 - size of byte array, 
+	//			-1 - no bytes available in port,
+	//			-2 - not all bytes read, data must be re-read,
+	//			-3 - data size is big.
+	INT Read(BYTE *pBuffer, INT nMaxBuffLen = 256);
 	// Set the maximum milliseconds to wait for serial data when using Read(BYTE*)
 	void SetReadTimeout(long lTimeout) {m_lSerialTimeout = lTimeout;}
 
 	// Write byte into COM port
-	void Write(BYTE);
+	void Write(BYTE bData);
 	// Write bytes from array into COM port
-	void Write(BYTE*, UINT);
+	void Write(BYTE *pBuffer, INT nLength);
 };
 
 //extern CSerialPort* pSerialPort;	//			

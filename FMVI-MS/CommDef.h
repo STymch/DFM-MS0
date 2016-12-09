@@ -10,6 +10,11 @@
 	#include "WProgram.h"
 #endif
 
+// Выдача отладочных сообщений в аппаратный COM-порт Arduino
+#ifndef _DEBUG_TRACE
+#define _DEBUG_TRACE
+#endif
+
 // --- ТИПЫ ДАННЫХ
 typedef		unsigned			char	BYTE;	// 1 byte
 typedef		unsigned			short	WORD;	// 2 byte

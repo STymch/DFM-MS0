@@ -13,7 +13,7 @@ const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 
 
-byte *pBuff = new byte[256];
+byte pBuff[256]; // = new byte[256];
 UINT i, n;
 long lCount = 0;
 
@@ -76,7 +76,7 @@ int nTypeSerial = 1; // 0 - hardware, 1 - software
 	  BTSerial->begin(DR_SOFTWARE_COM);
 	  // BTSerial.println("Starting BT software COM");
 	  delay(1000);
-    }
+	}
 }
 
 void loop()

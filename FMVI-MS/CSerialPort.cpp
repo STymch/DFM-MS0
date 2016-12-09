@@ -10,7 +10,7 @@ CSerialPort::CSerialPort(INT nTypeCOM, INT nRX, INT nTX) {
 	m_nRX_PIN = nRX;					// Software UART RX pin, connect to TX of Bluetooth modem
 	m_nTX_PIN = nTX;					// Software UART TX pin, connect to RX of Bluetooth modem
 
-										// Define pin modes for software TX, RX:
+	// Define pin modes for software TX, RX:
 	pinMode(m_nRX_PIN, INPUT);
 	pinMode(m_nTX_PIN, OUTPUT);
 
@@ -53,7 +53,7 @@ void CSerialPort::EstablishContact() {
 		}
 }
 // Read byte from COM port
-// Return:	-1	- byte no read, else - reading byte 	
+// Return:	-1	- no byte read, else - reading byte 	
 INT CSerialPort::Read() {
 	INT b = -1;
 
@@ -65,30 +65,34 @@ INT CSerialPort::Read() {
 	
 	return b;
 }
-// Reads bytes from the COM port into an array. First byte is quantity of bytes after this 
-// Return:	number of read bytes; -1 - bytes no read; -2 - less of data with read. 	
-INT CSerialPort::Read(BYTE* pBuffer) {
-	INT		len;			// length of array after first byte
+// Read data from COM port into byte array. First byte = SIZE of data, array must be [SIZE+1]. 
+// Return:	>0 - size of byte array, 
+//			-1 - no bytes available in port,
+//			-2 - not all bytes read, data must be re-read,
+//			-3 - data size is big.
+INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
+	INT		len;			// Size of data in array
 	INT		b;				// Reading byte
-	UINT	i = 0;			// Index in array
+	INT		i = 0;			// Index in array
 	DWORD	dwTime;			// Time in microsec
-	INT		retcode = -1;	// Return code - no bytes
+	INT		retcode = -1;	// Return code - no bytes available in port
 
-	// If available - read first byte = length of data after it
-	if ((len = Read()) > 0) {			
-		pBuffer[i++] = (BYTE)len;		// Save first byte (length) into output array
-		dwTime = micros();				// Get current time in microsec
-		// Read len bytes and save it into output array
-		while (i < len + 1 && LessEqual (micros(), dwTime+m_lSerialTimeout) ) {			
-			// If available - read byte, else - waiting timeout
-			if( (b = Read()) > 0) pBuffer[i++] = (BYTE)b;					
+	// If available - read first byte = size of data
+	if ((len = Read()) >= nMaxBuffLen)	retcode = -3;	// Data size is big
+	else 
+		if (len > 0) {
+			pBuffer[i++] = (BYTE)len;				// Save first byte = size of data into output array
+			dwTime = millis() + m_lSerialTimeout;	// Time of waiting of end reading in millisec
+			// Read len bytes and save it into output array
+			do {
+				// If available - read byte, else - waiting timeout
+				if ((b = Read()) > 0) pBuffer[i++] = (BYTE)b;
+			} while ((i < len + 1) && (millis() <= dwTime));
+
+			if (i == len + 1)	retcode = len + 1;	// Read all bytes successfully
+			else	retcode = -2;					// Timeout when read byte - not all bytes read
 		}
-		if (i == len + 1)	
-			retcode = i;	// Read all bytes successfully
-		else
-			retcode = -2;	// Timeout when read byte
-	}
-		
+
 	return retcode;
 }
 
@@ -98,12 +102,7 @@ void CSerialPort::Write(BYTE bData) {
 	else Serial.write(bData);												// Arduino Hardware COM port
 }
 // Write bytes from array into COM port
-void CSerialPort::Write(BYTE* pBuffer, UINT nLength) {
+void CSerialPort::Write(BYTE *pBuffer, INT nLength) {
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) m_pSSerial->write(pBuffer, nLength);	// Arduino SoftwareSerial COM 
 	else Serial.write(pBuffer, nLength);											// Arduino Hardware COM port
 }
-
-
-
-//CSerialPort* pSerialPort;
-

@@ -1,8 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////////
 // --- Flowmeter verification installation - working measurement standard  ---
 /////////////////////////////////////////////////////////////////////////////////
-// --- S U B S Y S T E M ---
-// ---  Flowmeter verification installation measuring system: FMVI-MS
+// --- Flowmeter verification installation measuring system: FMVI-MS
 /////////////////////////////////////////////////////////////////////////////////
 // Copyright (C) 2016 by Sergiy Tymchenko
 // All rights reserved.
@@ -22,22 +21,24 @@
 //		ReadTemperatureDS ( )	- запрос температуры среды из датчика типа DS18B20
 /////////////////////////////////////////////////////////////////////////////////
 
-#include "CSerialPort.h"
 #include "CommDef.h"
+#include "CSerialPort.h"
 #include <EEPROM.h>		
 #include <OneWire.h>
-#include <SoftwareSerial.h>
 
 
 const int   LED_PIN = 13;				// LED pin
 const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-05 
 const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
-const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
-const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
+const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
+const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
+
+const int	MAX_BUFF_SIZE = 21;			// Max size of bytes data array buffer
+const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Global variables:
-BYTE *pBuff = new byte[sizeof(BYTE)];
-UINT i, n;
+BYTE pBuff[MAX_BUFF_SIZE];
+INT i, nLen;
 long lCount = 0;
 int nTypeSerial = 1; // 0 - hardware, 1 - software
 
@@ -54,11 +55,13 @@ void setup()
 
 	pHSerialPort->Init(DR_HARDWARE_COM, 0);
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
-		
-	pHSerialPort->Write("Starting hardware COM!",21);
-	delay(1000);
+	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
-	pBTSerialPort->Write("Starting BT software COM", 24);
+	#ifdef _DEBUG_TRACE
+		pHSerialPort->Write((BYTE*)"Starting hardware COM!\n\r", 25);
+		pBTSerialPort->Write((BYTE *)"Starting BT software COM!\n\r", 28);
+	#endif
+	
 	delay(1000);
 }
 
@@ -66,14 +69,30 @@ void loop()
 {
 
 	// Read data from hardware port, write into bluetooth port
-	if ((n = pHSerialPort->Read(pBuff)) > 0) pBTSerialPort->Write(pBuff, n);
-
-	// Read data from bluetooth port, write into hardware port and back to bluetooth
-	if ((n = pBTSerialPort->Read(pBuff)) > 0) {
-		pHSerialPort->Write(pBuff, n);
-		pBTSerialPort->Write(pBuff, n);
-		lCount++;
+	if ((nLen = pHSerialPort->Read(pBuff)) > 0) {
+		#ifdef _DEBUG_TRACE
+			Serial.print("Len="); Serial.print(nLen); 
+			Serial.print(" Buff="); Serial.write(pBuff, nLen); Serial.println();
+		#endif
 	}
+	#ifdef _DEBUG_TRACE
+	else if (nLen != -1){ Serial.print("H Len="); Serial.println(nLen); }
+	#endif
+	
+	// Read data from bluetooth port, write into hardware port and back to bluetooth
+	if ((nLen = pBTSerialPort->Read(pBuff, MAX_BUFF_SIZE)) > 0) {
+		lCount++;
+		#ifdef _DEBUG_TRACE
+			Serial.print("Count="); Serial.print(lCount);
+			Serial.print("\tLen=");	Serial.print(nLen);
+			Serial.print("\tBuff="); Serial.write(pBuff, nLen); Serial.println();
+		#endif
+		//pHSerialPort->Write(pBuff, n);
+		pBTSerialPort->Write(pBuff, nLen);
+	}
+	#ifdef _DEBUG_TRACE
+	else if (nLen != -1) { Serial.print("BT Len="); Serial.println(nLen); }
+	#endif
 }
 	
 
