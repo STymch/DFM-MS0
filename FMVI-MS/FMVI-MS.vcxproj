@@ -83,11 +83,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CDataMS.h" />
     <ClInclude Include="CommDef.h" />
     <ClInclude Include="CSerialPort.h" />
     <ClInclude Include="__vm\.FMVI-MS.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CDataMS.cpp" />
     <ClCompile Include="CSerialPort.cpp" />
   </ItemGroup>
   <PropertyGroup>

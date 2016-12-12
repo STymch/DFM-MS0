@@ -22,6 +22,7 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CommDef.h"
+#include "CDataMS.h"
 #include "CSerialPort.h"
 #include <EEPROM.h>		
 #include <OneWire.h>
@@ -47,15 +48,24 @@ int nTypeSerial = 1; // 0 - hardware, 1 - software
 CSerialPort		*pBTSerialPort,	// For bluetooth modem 
 				*pHSerialPort;	// Yardware port
 
+CDataMS			*pDataMS;
+
+
 void setup() 
 {
 	// Create objects of FMVI-MS:
 	pHSerialPort = new CSerialPort();
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 
+	pDataMS = new CDataMS;
+	pDataMS->SetDataMS(0x10);
+
+	
+
 	pHSerialPort->Init(DR_HARDWARE_COM, 0);
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
+
 
 	#ifdef _DEBUG_TRACE
 		pHSerialPort->Write((BYTE*)"Starting hardware COM!\n\r", 25);
@@ -67,7 +77,12 @@ void setup()
 
 void loop()
 {
-
+	BYTE b;
+	// Read data from hardware port, write data from MS into bluetooth port
+/*	if ((b = pHSerialPort->Read()) > 0) {	
+		pBTSerialPort->Write(pDataMS->GetDataMS(), 20);
+	}
+*/	
 	// Read data from hardware port, write into bluetooth port
 	if ((nLen = pHSerialPort->Read(pBuff)) > 0) {
 		#ifdef _DEBUG_TRACE
