@@ -34,11 +34,10 @@ const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
 
-const int	MAX_BUFF_SIZE = 21;			// Max size of bytes data array buffer
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Global variables:
-BYTE pBuff[MAX_BUFF_SIZE];
+BYTE pBuff[DATA_LEN+1];
 INT i, nLen;
 long lCount = 0;
 int nTypeSerial = 1; // 0 - hardware, 1 - software
@@ -47,9 +46,10 @@ int nTypeSerial = 1; // 0 - hardware, 1 - software
 // Serial ports
 CSerialPort		*pBTSerialPort,	// For bluetooth modem 
 				*pHSerialPort;	// Yardware port
-
+// Data structure of data of FMVI-MS
 CDataMS			*pDataMS;
 
+DWORD dwCount = 10000;
 
 void setup() 
 {
@@ -57,19 +57,20 @@ void setup()
 	pHSerialPort = new CSerialPort();
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 
-	pDataMS = new CDataMS;
-	pDataMS->SetDataMS(0x10);
-
-	
-
 	pHSerialPort->Init(DR_HARDWARE_COM, 0);
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
-
+	pDataMS = new CDataMS;
+	pDataMS->SetDataMS(0x41);
+	
+	for (int i = 0; i <= DATA_LEN; i++)	pBuff[i]=i;
+	pDataMS->SetDataMS(pBuff);
+	
+		
 	#ifdef _DEBUG_TRACE
 		pHSerialPort->Write((BYTE*)"Starting hardware COM!\n\r", 25);
-		pBTSerialPort->Write((BYTE *)"Starting BT software COM!\n\r", 28);
+		//pBTSerialPort->Write((BYTE *)"Starting BT software COM!\n\r", 28);
 	#endif
 	
 	delay(1000);
@@ -77,13 +78,34 @@ void setup()
 
 void loop()
 {
-	BYTE b;
+	INT b;
+	
+	dwCount++;
 	// Read data from hardware port, write data from MS into bluetooth port
-/*	if ((b = pHSerialPort->Read()) > 0) {	
-		pBTSerialPort->Write(pDataMS->GetDataMS(), 20);
+	if ((b = pHSerialPort->Read()) > 0) {	
+		pDataMS->SetStatus(BYTE(b));
+		pDataMS->SetTempr(29.56);
+		pDataMS->SetPowerU(523);
+		pDataMS->SetQ(15.675);
+		pDataMS->SetCountC(78987L);
+		pDataMS->SetCountF(dwCount);
+
+		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN+1);
+		
+		Serial.println("DataMS=");
+		for (int i = 0; i <= DATA_LEN; Serial.print(i), Serial.print("="), Serial.println(pDataMS->GetDataMS()[i++], HEX));
+		Serial.println();
+
+		Serial.print("Status=");	Serial.print(pDataMS->GetStatus());	Serial.println();
+		Serial.print("Tempr=");		Serial.print(pDataMS->GetTempr());	Serial.println();
+		Serial.print("U=");			Serial.print(pDataMS->GetPowerU()); Serial.println();
+		Serial.print("Q=");			Serial.print(pDataMS->GetQ());		Serial.println();
+		Serial.print("CountC=");	Serial.print(pDataMS->GetCountC()); Serial.println();
+		Serial.print("CountF=");	Serial.print(pDataMS->GetCountF()); Serial.println();
+		Serial.println();
 	}
-*/	
-	// Read data from hardware port, write into bluetooth port
+	
+/*	// Read data from hardware port, write into bluetooth port
 	if ((nLen = pHSerialPort->Read(pBuff)) > 0) {
 		#ifdef _DEBUG_TRACE
 			Serial.print("Len="); Serial.print(nLen); 
@@ -95,7 +117,7 @@ void loop()
 	#endif
 	
 	// Read data from bluetooth port, write into hardware port and back to bluetooth
-	if ((nLen = pBTSerialPort->Read(pBuff, MAX_BUFF_SIZE)) > 0) {
+	if ((nLen = pBTSerialPort->Read(pBuff, DATA_LEN + 1)) > 0) {
 		lCount++;
 		#ifdef _DEBUG_TRACE
 			Serial.print("Count="); Serial.print(lCount);
@@ -108,6 +130,7 @@ void loop()
 	#ifdef _DEBUG_TRACE
 	else if (nLen != -1) { Serial.print("BT Len="); Serial.println(nLen); }
 	#endif
+*/
 }
 	
 

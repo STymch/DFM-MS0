@@ -50,8 +50,8 @@ public:
 
 
 	// Set data from buffer of bytes
-	void	SetDataMS(BYTE b) { for (int i = 1; i <= m_bLen; m_pDataMS[i++] = b); }
-	void	SetDataMS(BYTE *pBuff)	{ for (int i = 0; i <= m_bLen; m_pDataMS[i++] = *(pBuff++)); }
+	void	SetDataMS(BYTE b)		{ for (int i = 1; i <= m_bLen; m_pDataMS[i++] = b); }
+	void	SetDataMS(BYTE *pBuff)	{ for (int i = 1; i <= m_bLen; m_pDataMS[i++] = (*pBuff)++); }
 	void	SetLen(BYTE bLen)		{ m_bLen = bLen; }
 	void	SetStatus(BYTE bStatus) { m_bStatus = bStatus; }
 	void	SetTempr(FLOAT fT)		{ m_fTempr = fT; }
