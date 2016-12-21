@@ -61,7 +61,7 @@ INT CSerialPort::Read() {
 		if (m_pSSerial->available() > 0) b = m_pSSerial->read();// Arduino SoftwareSerial COM 
 	}
 	else
-		if (Serial.available() > 0) b = Serial.read();			// Arduino Hardware COM port
+		if (Serial.available() > 0 ) b = Serial.read();			// Arduino Hardware COM port
 	
 	return b;
 }
@@ -82,17 +82,18 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 	else 
 		if (len > 0) {
 			pBuffer[i++] = (BYTE)len;				// Save first byte = size of data into output array
+			
 			dwTime = millis() + m_lSerialTimeout;	// Time of waiting of end reading in millisec
 			// Read len bytes and save it into output array
 			do {
 				// If available - read byte, else - waiting timeout
-				if ((b = Read()) > 0) pBuffer[i++] = (BYTE)b;
+				if ((b = Read()) >= 0)	pBuffer[i++] = (BYTE)b;
 			} while ((i < len + 1) && (millis() <= dwTime));
 
 			if (i == len + 1)	retcode = len + 1;	// Read all bytes successfully
 			else	retcode = -2;					// Timeout when read byte - not all bytes read
 		}
-
+	
 	return retcode;
 }
 

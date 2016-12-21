@@ -10,36 +10,15 @@ const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM
 
-SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
+// SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
+SoftwareSerial BTSerial(RX_PIN, TX_PIN);
 
-
-byte pBuff[256]; // = new byte[256];
-UINT i, n;
-long lCount = 0;
-
-struct StatusByte {
-	UINT b0 : 1;
-	UINT b1 : 1;
-	UINT b2 : 1;
-	UINT b3 : 1;
-	UINT b4_7 : 4;
-};
-
-StatusByte bits;
-union UStatusByte {
-	byte bByte;
-	StatusByte bStatus;
-};
-UStatusByte uByte;
-// int nTypeSerial = 1; // 0 - hardware, 1 - software
-
+// byte pBuff[256]; // = new byte[256];
+// UINT i, n;
+// long lCount = 0;
 
 
 void setup() {
-
-uByte.bByte = 0; uByte.bStatus.b0 = 1; uByte.bStatus.b1 = 1; uByte.bStatus.b2 = 1; uByte.bStatus.b4_7 = 15;
-int nTypeSerial = 1; // 0 - hardware, 1 - software
-
 
 
 // Define pin modes for software TX, RX:
@@ -48,39 +27,56 @@ int nTypeSerial = 1; // 0 - hardware, 1 - software
   
   // Set the data rate and open hardware COM port:
   Serial.begin(DR_HARDWARE_COM);
-  
+  BTSerial.begin(DR_SOFTWARE_COM);
+
   // Wait for serial port to connect. Needed for native USB port only
   while (!Serial);
   Serial.println("Starting hardware COM!");
-  Serial.println(uByte.bByte, HEX);
-  Serial.println(sizeof(BYTE));
-  Serial.println(sizeof(WORD));
-  Serial.println(sizeof(UINT));
-  Serial.println(sizeof(INT));
-  Serial.println(sizeof(DWORD));
-  Serial.println(sizeof(FLOAT));
-  Serial.println(sizeof(QWORD));
-
-  Serial.println();
-
-  Serial.println(sizeof(uint8_t));
-  Serial.println(sizeof(uint16_t));
-  Serial.println(sizeof(uint32_t));
-  Serial.println(sizeof(uint64_t));
-  
-  delay(1000);
 
   // Set the data rate and open software COM port:
-  if (nTypeSerial == 1) {
+  /*if (nTypeSerial == 1) {
 	  BTSerial = new SoftwareSerial(RX_PIN, TX_PIN);
 	  BTSerial->begin(DR_SOFTWARE_COM);
 	  // BTSerial.println("Starting BT software COM");
 	  delay(1000);
-	}
+	}*/
 }
+
 
 void loop()
 {
+	int nH, nB;
+	// Read byte from hardware COM -> write it into software COM
+	while (nH=Serial.available())
+	{
+		Serial.print("H port: nH=");
+		Serial.print(nH, HEX);
+		// Read byte
+		int b = Serial.read();
+		Serial.print(",b=");
+		// Write byte to hardware COM
+		Serial.print(b, HEX);
+		Serial.println();
+		// Write byte to software COM
+		BTSerial.write(b);
+	}
+	// Read result of AT command from software COM
+	while (nB=BTSerial.available())
+	{
+		Serial.print("BT port: nB=");
+		Serial.print(nB, HEX);
+		// Read byte
+		int b = BTSerial.read();
+		Serial.print(",b=");
+		Serial.print(b, HEX);
+		Serial.println();
+		// Read byte from software COM and then write it into hardware COM
+		BTSerial.write(b);
+	}
+	
+	/*
+	
+	
 	// BTSerial = new SoftwareSerial(RX_PIN, TX_PIN);
 	int nTypeSerial = 1; // 0 - hardware, 1 - software
 	if (nTypeSerial == 1) {
@@ -138,4 +134,5 @@ void loop()
 		BTSerial->write(pBuff, n+1);
 		i = n = 0;
 	}
+*/
 }
