@@ -35,7 +35,7 @@ const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
 
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
-const int	DELAY_BEFORE_READ_BT = 500;	// Delay before read data from BT COM port, millises
+const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port, millises
 
 // Global variables:
 BYTE pBuff[DATA_LEN+1];
@@ -92,9 +92,9 @@ void loop()
 	if (isKeyHit) {
 		
 		// Print number of loop
-		Serial.println(); 
-		Serial.print("Counts: Write="); Serial.print(lCount); Serial.print(" Read="); Serial.print(lCountR);
-		Serial.print(" W-R="); Serial.println(lCount-lCountR);
+		Serial.println(); Serial.print("Counts: Write="); Serial.println(lCount); 
+//		Serial.print(" Read="); Serial.print(lCountR);
+//		Serial.print(" W-R="); Serial.println(lCount-lCountR);
 				
 		// Fill data
 		pDataMS->SetStatus(BYTE(nStatus));
@@ -111,9 +111,17 @@ void loop()
 
 		// Delay
 		delay(DELAY_BEFORE_READ_BT); 
+
+		// Change data
+		nStatus++;
+		fT += 0.01;
+		nU++;
+		fQ += 0.01;
+		dwCFull++;
+		dwCCurr--;
 		
 		// Read data from BT port, compare write and read data
-		if ((nLen = pBTSerialPort->Read(pBuff, DATA_LEN + 1)) > 0) {
+/*		if ((nLen = pBTSerialPort->Read(pBuff, DATA_LEN + 1)) > 0) {
 			lCountR++;
 			Serial.print("<- Read ");
 			isDataCompare = TRUE;
@@ -147,7 +155,7 @@ void loop()
 		#ifdef _DEBUG_TRACE
 		else if (nLen != -1) { Serial.print("BT Read data: Error="); Serial.println(nLen); isKeyHit = FALSE; }
 		#endif
-
+*/
 		/*		Serial.println();
 		Serial.print("Write data: Buffer ");
 		for (int i = 0; i <= DATA_LEN; Serial.print(i), Serial.print("="),
