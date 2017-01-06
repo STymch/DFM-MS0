@@ -13,7 +13,7 @@
 #include <SoftwareSerial.h>
 
 ///////////////////////////////////////////////////////
-// <<< CSerialPort - class for Arduino Serial COM port
+// <<< CSerialPort - class for Arduino Serial COM port 
 ///////////////////////////////////////////////////////
 class CSerialPort
 {

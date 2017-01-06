@@ -26,7 +26,7 @@ typedef		unsigned	long	long	QWORD;	// 8 byte
 
 // --- МАКРОСЫ
 // - сравнение числовых величин
-#define Greater(a, b)      ( ( (a) - (b) ) >  0 )
+#define Greater(a, b)      ( ( (a) - (b) ) >  0 ) 
 #define GreaterEqual(a, b) ( ( (a) - (b) ) >= 0 )
 #define Less(a, b)         ( ( (a) - (b) ) <  0 )
 #define LessEqual(a, b)    ( ( (a) - (b) ) <= 0 )

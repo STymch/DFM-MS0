@@ -68,7 +68,7 @@ INT CSerialPort::Read() {
 // Read data from COM port into byte array. First byte = SIZE of data, array must be [SIZE+1]. 
 // Return:	>0 - size of byte array, 
 //			-1 - no bytes available in port,
-//			-2 - not all bytes read, data must be re-read,
+//			-2 - not all bytes read, data must be re-read, 
 //			-3 - data size is big.
 INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 	INT		len;			// Size of data in array
