@@ -151,8 +151,10 @@ protected:
 			BYTE	m_bCode;				// Код команды										1
 			union							// Аргументы команды								1-4
 			{
-				DWORD	m_dwArg;			
-				BYTE	m_bArg;
+				DWORD	m_dwArg;			// Аргумент DWORD (4)		
+				BYTE	m_bArg;				// Аргумент BYTE (1)
+				UINT	m_nArg;				// Аргумент UINT (2)
+				FLOAT	m_fArg;				// Аргумент FLOAT (4)
 			};			
 		};
 	};
