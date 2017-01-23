@@ -26,40 +26,111 @@
 #include "CSerialPort.h"
 #include <EEPROM.h>		
 #include <OneWire.h>
+#include <MsTimer2.h>
 
 
-const int   LED_PIN = 13;				// LED pin
+// Global parameters
+// Arduino analog GPIO
+const int   POWER_ON_PIN = 0;			// Power analog input pin
+
+// Arduino digital GPIO
+const int   EMFM_PIN = 2;				// EMFM digital out input pin
+const int   TEST_PIN = 3;				// Test digital generator out input pin
+const int   TEMP_PIN = 4;				// Temperature sensor DS18B20 DQ out input pin
+const int   ALM_FQH_PIN = 5;			// EEMFM FQH ALARM out input pin
+const int   ALM_FQL_PIN = 6;			// EEMFM FQL ALARM out input pin
+const int   POWER_OFF_PIN = 7;			// Power off output pin
+
 const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-05 
 const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
+const int   LED_PIN = 13;				// LED output pin
+
+// Arduino external interrupts
+const int	INT_0 = 0;					// external interrupt 0 (connect to digital pin 2)
+const int	INT_1 = 1;					// external interrupt 1 (connect to digital pin 3)
+const int	MODE_INT = FALLING;			// mode of external interrupt
+
+// Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
-
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
-const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port, millises
 
-// Global variables:
+// Time parameters
+const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port, millises
+const DWORD	FREQUENCY_TIMER2_MS = 50;	// Timer2 period in milliseconds
+
+// Global variables
 BYTE pBuff[DATA_LEN+1];
 INT i, nLen;
 long lCount = 0, lCountR = 0;
 long lError = 0;
 int nTypeSerial = 1; // 0 - hardware, 1 - software
+volatile DWORD	dwTimerTick = 0;
 
 // Global objects
 // Serial ports
 CSerialPort		*pBTSerialPort;	// For bluetooth modem 
 				
 // Data structure of data of FMVI-MS
-CDataMS			*pDataMS;
+CDataMS	*volatile pDataMS;
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire DSTempSensor(TEMP_PIN);
+
 
 DWORD	dwCFull = 0, dwCCurr = 1000000L;
+
 INT		nStatus = 0;
 FLOAT	fT = 0.5, fQ = 0.01;
 UINT	nU = 2;
 
 bool	isKeyHit = FALSE;
 bool	isDataCompare = FALSE;
+volatile bool	isDataChange = FALSE; 
+
+///////////////////////////////////////////////////////////////
+// Timer2 ISR callback function
+///////////////////////////////////////////////////////////////
+// Timer2 ISR
+void ISR_Timer2() {
+	static bool output = HIGH;
+	
+	// Write data into BT COM port
+	if (isDataChange) 
+	{
+		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+		isDataChange = FALSE;
+	}
+
+	// Наращиваем счетчик тиков таймера
+	dwTimerTick++;
+	
+	// Switch on/off LED
+	digitalWrite(LED_PIN, output);
+	output = !output;
+}
+
+///////////////////////////////////////////////////////////////
+// External interrupt ISR callback function
+///////////////////////////////////////////////////////////////
+void ISR_InputImp() {
+
+/*	if (есть_импульс_нужной_длительности) {
+		dwAllImpCount++;							// Общий счетчик импульсов
+
+		if (dwCurrImpCount > 0) dwCurrImpCount--;	// Счетчик импульсов для заданного пролива
+
+		dwImpTime = millis();						// Запоминаем отсчет времени импульса
+	}
+	else // дребезг
+	*/
+
+}
 
 
+///////////////////////////////////////////////////////////////
+// Initialisation FMVI-MS
+///////////////////////////////////////////////////////////////
 void setup() 
 {
 	#ifdef _DEBUG_TRACE
@@ -68,6 +139,9 @@ void setup()
 		while (!Serial);
 	#endif
 
+	// Set pin mode for LED pin
+	pinMode(LED_PIN, OUTPUT);
+
 	// Create objects of FMVI-MS:
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 
@@ -75,27 +149,47 @@ void setup()
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
 	pDataMS = new CDataMS;
-		
-			
+
+	// Set Timer2 period milliseconds
+	MsTimer2::set(FREQUENCY_TIMER2_MS, ISR_Timer2);
+
+	// Set external interrupt ISR
+	pinMode(TEST_PIN, OUTPUT);
+	attachInterrupt(INT_1, ISR_InputImp, MODE_INT);
+							
 	#ifdef _DEBUG_TRACE
 		Serial.println("----- Starting, please press any key! -----");
 		Serial.print(" SERIAL_READ_TIMEOUT = "); Serial.print(SERIAL_READ_TIMEOUT);
 		Serial.print(" DELAY_BEFORE_READ_BT = "); Serial.print(DELAY_BEFORE_READ_BT);
+		Serial.print(" FREQUENCY_TIMER2_MS = "); Serial.print(FREQUENCY_TIMER2_MS);
 		Serial.println();
 	#endif
 			
 }
 
+///////////////////////////////////////////////////////////////
+// Working loop of FMVI-MS
+///////////////////////////////////////////////////////////////
 void loop()
 {
 	// Press any key for start / stop loop
 	if (isKeyHit) {
 		
+		// Set Timer2 ISR
+		// FrequencyTimer2::setOnOverflow(ISR_Timer2);
+
+		// Enable Timer2 interrupt
+		MsTimer2::start();
+
 		// Print number of loop
-		Serial.println(); Serial.print("Counts: Write="); Serial.println(lCount); 
+		Serial.println(); Serial.print("Counts="); Serial.print(lCount); 
+		Serial.print("\tdwTimerTick="); Serial.println(dwTimerTick);
+
 //		Serial.print(" Read="); Serial.print(lCountR);
 //		Serial.print(" W-R="); Serial.println(lCount-lCountR);
-				
+		
+		noInterrupts();     // disable interrupts
+		
 		// Fill data
 		pDataMS->SetStatus(BYTE(nStatus));
 		pDataMS->SetTempr(fT);
@@ -103,11 +197,15 @@ void loop()
 		pDataMS->SetQ(fQ);
 		pDataMS->SetCountC(dwCCurr);
 		pDataMS->SetCountF(dwCFull);
+		
+		isDataChange = TRUE;
+
+		interrupts();       // enable interrupts
 
 		// Write data into BT COM port
-		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+		//pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 		lCount++;
-		Serial.print(" Write ->");
+		//Serial.print(" Write ->");
 
 		// Delay
 		delay(DELAY_BEFORE_READ_BT); 
@@ -175,6 +273,10 @@ void loop()
 	if (Serial.available()){
 		isKeyHit = !isKeyHit; 
 		Serial.read();
+
+		// Disable Timer2 interrupt
+		MsTimer2::stop();
+		// Serial.print(" Actual Timer2 Period = "); Serial.println((DWORD)FrequencyTimer2::getPeriod());
 	}
 	while (Serial.available()) { Serial.read(); }
 }

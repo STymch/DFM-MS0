@@ -15,6 +15,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MyArduinoSamples", "MyArdui
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EEPROM_CRC", "EEPROM_CRC\EEPROM_CRC.vcxproj", "{C5F80730-F44F-4478-BDAE-6634EFC2CA88}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "..\My Examples\Test\Test.vcxproj", "{0915F75E-0886-4C4D-97D5-EA3AEB05656F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FlashLed", "..\My Examples\FlashLed\FlashLed.vcxproj", "{6F26323E-BD7A-43BD-9553-31DED7294918}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -41,6 +45,14 @@ Global
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.Build.0 = Debug|Win32
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.ActiveCfg = Release|Win32
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.Build.0 = Release|Win32
+		{0915F75E-0886-4C4D-97D5-EA3AEB05656F}.Debug|x86.ActiveCfg = Debug|Win32
+		{0915F75E-0886-4C4D-97D5-EA3AEB05656F}.Debug|x86.Build.0 = Debug|Win32
+		{0915F75E-0886-4C4D-97D5-EA3AEB05656F}.Release|x86.ActiveCfg = Release|Win32
+		{0915F75E-0886-4C4D-97D5-EA3AEB05656F}.Release|x86.Build.0 = Release|Win32
+		{6F26323E-BD7A-43BD-9553-31DED7294918}.Debug|x86.ActiveCfg = Debug|Win32
+		{6F26323E-BD7A-43BD-9553-31DED7294918}.Debug|x86.Build.0 = Debug|Win32
+		{6F26323E-BD7A-43BD-9553-31DED7294918}.Release|x86.ActiveCfg = Release|Win32
+		{6F26323E-BD7A-43BD-9553-31DED7294918}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

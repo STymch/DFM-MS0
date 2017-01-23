@@ -9,10 +9,6 @@ FMVI-MS.ino	-	основной файл проекта
 			CInputPower:		получение и контроль уровня зарадя АКБ
 			CEMFMAlarm:			конрроль аварийных сигналов расходомера
 ___________________________________________________________________________________________________
-
-CEEPROM.cpp	-	подсистема хранения параметров в EEPROM, 
-	class CEEPROM {}
-___________________________________________________________________________________________________
 CSerialPort.cpp -	прием/передача данных по последовательным портам, 
 	class CSerialPort {}
 	Определение структур данных обмена между FMVI-MS и FMVI-CP
@@ -32,6 +28,10 @@ ________________________________________________________________________________
 CEMFMAlarm.cpp	-	конрроль аварийных сигналов расходомера,
 	class CEMFMAlarm {}
 ___________________________________________________________________________________________________
+CEEPROM.cpp	-	подсистема хранения параметров в EEPROM,
+class CEEPROM {}
+___________________________________________________________________________________________________
+
 */
 // Объявления глобальных констант и переменных по секциям-подсистемам:
 
@@ -62,6 +62,48 @@ void setup()
 
 void loop()
 {
+	// Обработка нажатия клавиш:
+	if (Serial.available()) {
+		char ch = Serial.read();
+		switch (ch) {
+		case '0'...'9':
+			// v = v * 10 + ch - '0';
+			break;
+		case 'p':
+			FrequencyTimer2::setPeriod(v);
+			Serial.print("set ");
+			Serial.print((long)v, DEC);
+			Serial.print(" = ");
+			Serial.print((long)FrequencyTimer2::getPeriod(), DEC);
+			Serial.println();
+			v = 0;
+			break;
+		case 'r':
+			Serial.print("period is ");
+			Serial.println(FrequencyTimer2::getPeriod());
+			break;
+		case 'e':
+			FrequencyTimer2::enable();
+			break;
+		case 'd':
+			FrequencyTimer2::disable();
+			break;
+		case 'o':
+			FrequencyTimer2::setOnOverflow(Burp);
+			break;
+		case 'n':
+			FrequencyTimer2::setOnOverflow(0);
+			break;
+		case 'b':
+			unsigned long count;
+			noInterrupts();     // disable interrupts while reading the count
+			count = burpCount;  // so we don't accidentally read it while the
+			interrupts();       // Burp() function is changing the value!
+			Serial.println(count, DEC);
+			break;
+		}
+	}
+	
 	if (!isInit) {
 		// Чтение данных из EEPROM
 		// Инициализация объектов
@@ -105,16 +147,6 @@ void loop()
 
 
 
-// Обработчик прерываний аппаратного таймера
-// Глобальные параметры: FLOAT fTimerFreq - частота прерываний таймера
-void ISR_Timer() {
-	// Передать в последовательный порт исходящий пакет данных
-	pSSerial->Write(pbOutBuff);
-
-	// Наращиваем счетчик тиков таймера
-	dwTimerTick++;
-
-}
 
 // Обработчик аппаратных прерываний от внешнего источника импульсов
 // Глобальные параметры: nImp_Ltr - кол-во импульсов на литр, nImpThresold - минимальна длительность импульса
