@@ -57,7 +57,7 @@ const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, milli
 
 // Time parameters
 const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port, millises
-const DWORD	FREQUENCY_TIMER2_MS = 50;	// Timer2 period in milliseconds
+const DWORD	FREQUENCY_TIMER2_MS = 250;	// Timer2 period in milliseconds
 
 // Global variables
 BYTE pBuff[DATA_LEN+1];
@@ -77,8 +77,8 @@ CDataMS	*volatile pDataMS;
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire DSTempSensor(TEMP_PIN);
 
-
-DWORD	dwCFull = 0, dwCCurr = 1000000L;
+volatile DWORD	dwCFull = 0;
+volatile DWORD	dwCCurr = 10000L;
 
 INT		nStatus = 0;
 FLOAT	fT = 0.5, fQ = 0.01;
@@ -91,9 +91,8 @@ volatile bool	isDataChange = FALSE;
 ///////////////////////////////////////////////////////////////
 // Timer2 ISR callback function
 ///////////////////////////////////////////////////////////////
-// Timer2 ISR
 void ISR_Timer2() {
-	static bool output = HIGH;
+	static bool led_out = HIGH;
 	
 	// Write data into BT COM port
 	if (isDataChange) 
@@ -106,14 +105,16 @@ void ISR_Timer2() {
 	dwTimerTick++;
 	
 	// Switch on/off LED
-	digitalWrite(LED_PIN, output);
-	output = !output;
+	digitalWrite(LED_PIN, led_out);
+	led_out = !led_out;
 }
 
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function
 ///////////////////////////////////////////////////////////////
 void ISR_InputImp() {
+	dwCFull++;
+	if(dwCCurr > 0) dwCCurr--;
 
 /*	if (есть_импульс_нужной_длительности) {
 		dwAllImpCount++;							// Общий счетчик импульсов
@@ -152,9 +153,11 @@ void setup()
 
 	// Set Timer2 period milliseconds
 	MsTimer2::set(FREQUENCY_TIMER2_MS, ISR_Timer2);
+	// Enable Timer2 interrupt
+	MsTimer2::start();
 
 	// Set external interrupt ISR
-	pinMode(TEST_PIN, OUTPUT);
+	pinMode(TEST_PIN, INPUT);
 	attachInterrupt(INT_1, ISR_InputImp, MODE_INT);
 							
 	#ifdef _DEBUG_TRACE
@@ -179,16 +182,19 @@ void loop()
 		// FrequencyTimer2::setOnOverflow(ISR_Timer2);
 
 		// Enable Timer2 interrupt
-		MsTimer2::start();
+		// MsTimer2::start();
 
 		// Print number of loop
 		Serial.println(); Serial.print("Counts="); Serial.print(lCount); 
-		Serial.print("\tdwTimerTick="); Serial.println(dwTimerTick);
+		Serial.print("\tdwTimerTick="); Serial.print(dwTimerTick);
+		Serial.print("\tdwCFull="); Serial.print(dwCFull);
+		Serial.print("\tdwCCurr="); Serial.println(dwCCurr);
+
 
 //		Serial.print(" Read="); Serial.print(lCountR);
 //		Serial.print(" W-R="); Serial.println(lCount-lCountR);
 		
-		noInterrupts();     // disable interrupts
+	//	noInterrupts();     // disable interrupts
 		
 		// Fill data
 		pDataMS->SetStatus(BYTE(nStatus));
@@ -200,7 +206,7 @@ void loop()
 		
 		isDataChange = TRUE;
 
-		interrupts();       // enable interrupts
+	//	interrupts();       // enable interrupts
 
 		// Write data into BT COM port
 		//pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
@@ -208,15 +214,15 @@ void loop()
 		//Serial.print(" Write ->");
 
 		// Delay
-		delay(DELAY_BEFORE_READ_BT); 
+	//	delay(DELAY_BEFORE_READ_BT); 
 
 		// Change data
 		nStatus++;
 		fT += 0.01;
 		nU++;
 		fQ += 0.01;
-		dwCFull++;
-		dwCCurr--;
+		//dwCFull++;
+		//dwCCurr--;
 		
 		// Read data from BT port, compare write and read data
 /*		if ((nLen = pBTSerialPort->Read(pBuff, DATA_LEN + 1)) > 0) {
@@ -275,7 +281,7 @@ void loop()
 		Serial.read();
 
 		// Disable Timer2 interrupt
-		MsTimer2::stop();
+	//	MsTimer2::stop();
 		// Serial.print(" Actual Timer2 Period = "); Serial.println((DWORD)FrequencyTimer2::getPeriod());
 	}
 	while (Serial.available()) { Serial.read(); }
