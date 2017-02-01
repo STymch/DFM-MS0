@@ -22,11 +22,14 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CommDef.h"
-#include "CDataMS.h"
-#include "CSerialPort.h"
-#include <EEPROM.h>		
+//#include <EEPROM.h>		
 #include <OneWire.h>
 #include <MsTimer2.h>
+
+#include "CSerialPort.h"
+#include "CDataMS.h"
+#include "CEMFM.h"
+
 
 
 // Global parameters
@@ -48,7 +51,7 @@ const int   LED_PIN = 13;				// LED output pin
 // Arduino external interrupts
 const int	INT_0 = 0;					// external interrupt 0 (connect to digital pin 2)
 const int	INT_1 = 1;					// external interrupt 1 (connect to digital pin 3)
-const int	MODE_INT = FALLING;			// mode of external interrupt
+const int	MODE_INT = CHANGE;			// mode of external interrupt
 
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
@@ -60,7 +63,12 @@ const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port
 const DWORD	FREQUENCY_TIMER2_MS = 250;	// Timer2 period in milliseconds
 
 // Global variables
+volatile DWORD	CEMFM::dwCountFullPulse;	// Counter of all input pulses from EMFM/Generator from start
+volatile DWORD	CEMFM::dwCountCurrPulse;	// Current counter of input pulses from EMFM/Generator
+
 BYTE pBuff[DATA_LEN+1];
+
+
 INT i, nLen;
 long lCount = 0, lCountR = 0;
 long lError = 0;
@@ -74,11 +82,11 @@ CSerialPort		*pBTSerialPort;	// For bluetooth modem
 // Data structure of data of FMVI-MS
 CDataMS	*volatile pDataMS;
 
+// EMFM/Generator
+CEMFM *pEMFM;
+
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire DSTempSensor(TEMP_PIN);
-
-volatile DWORD	dwCFull = 0;
-volatile DWORD	dwCCurr = 10000L;
 
 INT		nStatus = 0;
 FLOAT	fT = 0.5, fQ = 0.01;
@@ -86,7 +94,8 @@ UINT	nU = 2;
 
 bool	isKeyHit = FALSE;
 bool	isDataCompare = FALSE;
-volatile bool	isDataChange = FALSE; 
+volatile bool	isDataChange = FALSE;
+decltype (isKeyHit) isKeyPress;
 
 ///////////////////////////////////////////////////////////////
 // Timer2 ISR callback function
@@ -112,20 +121,47 @@ void ISR_Timer2() {
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function
 ///////////////////////////////////////////////////////////////
-void ISR_InputImp() {
-	dwCFull++;
-	if(dwCCurr > 0) dwCCurr--;
+void ISR_InputPulse()
+{
+	DWORD dwTimeBeginPulse;	// time of begin pulse
 
-/*	if (есть_импульс_нужной_длительности) {
-		dwAllImpCount++;							// Общий счетчик импульсов
+	// Increment counter of all EMFM pulse
+	//CEMFM::dwCountFullPulse++;
 
-		if (dwCurrImpCount > 0) dwCurrImpCount--;	// Счетчик импульсов для заданного пролива
+	// Decrement read pulse counter while > 0
+	//if (CEMFM::dwCountCurrPulse > 0) CEMFM::dwCountCurrPulse--;
 
-		dwImpTime = millis();						// Запоминаем отсчет времени импульса
+	// Disable all interrupts
+	noInterrupts();
+	// Read pulse pin state
+	if (digitalRead(pEMFM->GetPulsePin()) == pEMFM->GetTypePulseFront()) // pin state is front of pulse - pulse begin
+	{
+		dwTimeBeginPulse = millis(); // save time of pulse begin
 	}
-	else // дребезг
-	*/
+	else	// pulse end, check it idth 
+	{
+		if (millis() - dwTimeBeginPulse >= pEMFM->GetInpPulseWidth() ) // width of pulse correct
+		{
+			// Increment counter of all EMFM pulse
+			CEMFM::dwCountFullPulse++;
 
+			// Decrement current counter while > 0
+			if (CEMFM::dwCountCurrPulse > 0)
+			{
+				CEMFM::dwCountCurrPulse--;
+				
+				// If read all pulse - write data into BT COM port
+				if (CEMFM::dwCountCurrPulse == 0)
+				{
+					pDataMS->SetCountC(CEMFM::dwCountFullPulse);
+					pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
+					pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+				}
+			}
+		}
+	}
+	// Enable all interrupts
+	interrupts();
 }
 
 
@@ -151,14 +187,20 @@ void setup()
 
 	pDataMS = new CDataMS;
 
+	CEMFM::dwCountFullPulse = 0;
+	CEMFM::dwCountCurrPulse = 10000L;
+
+	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, 50, 50, 50);
+	pEMFM->Init(INT_1, MODE_INT, ISR_InputPulse);
+
 	// Set Timer2 period milliseconds
 	MsTimer2::set(FREQUENCY_TIMER2_MS, ISR_Timer2);
 	// Enable Timer2 interrupt
 	MsTimer2::start();
 
 	// Set external interrupt ISR
-	pinMode(TEST_PIN, INPUT);
-	attachInterrupt(INT_1, ISR_InputImp, MODE_INT);
+	//pinMode(TEST_PIN, INPUT);
+	//attachInterrupt(INT_1, ISR_InputImp, MODE_INT);
 							
 	#ifdef _DEBUG_TRACE
 		Serial.println("----- Starting, please press any key! -----");
@@ -178,111 +220,39 @@ void loop()
 	// Press any key for start / stop loop
 	if (isKeyHit) {
 		
-		// Set Timer2 ISR
-		// FrequencyTimer2::setOnOverflow(ISR_Timer2);
-
-		// Enable Timer2 interrupt
-		// MsTimer2::start();
+		noInterrupts();     // disable interrupts
 
 		// Print number of loop
-		Serial.println(); Serial.print("Counts="); Serial.print(lCount); 
-		Serial.print("\tdwTimerTick="); Serial.print(dwTimerTick);
-		Serial.print("\tdwCFull="); Serial.print(dwCFull);
-		Serial.print("\tdwCCurr="); Serial.println(dwCCurr);
+		Serial.println(); Serial.print("Loop="); Serial.print(lCount); 
+		Serial.print("\tTimerTick="); Serial.print(dwTimerTick);
+		Serial.print("\tCountFullPulse="); Serial.print(CEMFM::dwCountFullPulse);
+		Serial.print("\tCountCurrPulse="); Serial.println(CEMFM::dwCountCurrPulse);
 
-
-//		Serial.print(" Read="); Serial.print(lCountR);
-//		Serial.print(" W-R="); Serial.println(lCount-lCountR);
-		
-	//	noInterrupts();     // disable interrupts
-		
 		// Fill data
 		pDataMS->SetStatus(BYTE(nStatus));
 		pDataMS->SetTempr(fT);
 		pDataMS->SetPowerU(nU);
 		pDataMS->SetQ(fQ);
-		pDataMS->SetCountC(dwCCurr);
-		pDataMS->SetCountF(dwCFull);
+		pDataMS->SetCountC(CEMFM::dwCountFullPulse);
+		pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
 		
 		isDataChange = TRUE;
 
-	//	interrupts();       // enable interrupts
+		interrupts();       // enable interrupts
 
-		// Write data into BT COM port
-		//pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+		// Counter of loops
 		lCount++;
-		//Serial.print(" Write ->");
-
-		// Delay
-	//	delay(DELAY_BEFORE_READ_BT); 
-
+		
 		// Change data
 		nStatus++;
 		fT += 0.01;
 		nU++;
 		fQ += 0.01;
-		//dwCFull++;
-		//dwCCurr--;
-		
-		// Read data from BT port, compare write and read data
-/*		if ((nLen = pBTSerialPort->Read(pBuff, DATA_LEN + 1)) > 0) {
-			lCountR++;
-			Serial.print("<- Read ");
-			isDataCompare = TRUE;
-			for (int i = 0; i <= DATA_LEN && isDataCompare; i++)
-				isDataCompare = (pBuff[i] == pDataMS->GetDataMS()[i]);
-			if (!isDataCompare) {
-				isKeyHit = FALSE;
-				lError++; 
-				Serial.println();
-				Serial.print("----- Write / Read compare error -----"); Serial.println();
-				Serial.print("- Write data: Buffer ");
-				for (int i = 0; i <= DATA_LEN; Serial.print(i), Serial.print("="),
-					Serial.print(pDataMS->GetDataMS()[i++], HEX), Serial.print(" "));
-				Serial.println();
-				
-				Serial.print("- Read data:  Buffer ");
-				for (int i = 0; i <= DATA_LEN; Serial.print(i), Serial.print("="),
-					Serial.print(pBuff[i++], HEX), Serial.print(" "));
-				Serial.println();
-			}
-			Serial.print(" Error = "); Serial.print(lError);
-			
-			// Change data
-			nStatus++;
-			fT += 0.01;
-			nU++;
-			fQ += 0.01;
-			dwCFull++;
-			dwCCurr--;
-		}
-		#ifdef _DEBUG_TRACE
-		else if (nLen != -1) { Serial.print("BT Read data: Error="); Serial.println(nLen); isKeyHit = FALSE; }
-		#endif
-*/
-		/*		Serial.println();
-		Serial.print("Write data: Buffer ");
-		for (int i = 0; i <= DATA_LEN; Serial.print(i), Serial.print("="),
-			Serial.print(pDataMS->GetDataMS()[i++], HEX), Serial.print(" "));
-		Serial.println();
-
-		Serial.print("Status=");	Serial.print(pDataMS->GetStatus());	Serial.println();
-		Serial.print("Tempr=");		Serial.print(pDataMS->GetTempr());	Serial.println();
-		Serial.print("U=");			Serial.print(pDataMS->GetPowerU()); Serial.println();
-		Serial.print("Q=");			Serial.print(pDataMS->GetQ());		Serial.println();
-		Serial.print("CountC=");	Serial.print(pDataMS->GetCountC()); Serial.println();
-		Serial.print("CountF=");	Serial.print(pDataMS->GetCountF()); Serial.println();
-		Serial.println();
-*/
 	}
 	// Check press key
 	if (Serial.available()){
 		isKeyHit = !isKeyHit; 
 		Serial.read();
-
-		// Disable Timer2 interrupt
-	//	MsTimer2::stop();
-		// Serial.print(" Actual Timer2 Period = "); Serial.println((DWORD)FrequencyTimer2::getPeriod());
 	}
 	while (Serial.available()) { Serial.read(); }
 }
