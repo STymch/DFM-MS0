@@ -92,7 +92,7 @@ INT		nStatus = 0;
 FLOAT	fT = 0.5, fQ = 0.01;
 UINT	nU = 2;
 
-bool	isKeyHit = FALSE;
+bool	isKeyHit = TRUE;
 bool	isDataCompare = FALSE;
 volatile bool	isDataChange = FALSE;
 decltype (isKeyHit) isKeyPress;
@@ -104,7 +104,7 @@ void ISR_Timer2() {
 	static bool led_out = HIGH;
 	
 	// Write data into BT COM port
-	if (isDataChange) 
+	//if (isDataChange) 
 	{
 		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 		isDataChange = FALSE;
@@ -143,18 +143,15 @@ void ISR_InputPulse()
 		if (millis() - dwTimeBeginPulse >= pEMFM->GetInpPulseWidth() ) // width of pulse correct
 		{
 			// Increment counter of all EMFM pulse
-			CEMFM::dwCountFullPulse++;
+			pDataMS->SetCountC(++CEMFM::dwCountFullPulse);
 
 			// Decrement current counter while > 0
 			if (CEMFM::dwCountCurrPulse > 0)
 			{
-				CEMFM::dwCountCurrPulse--;
-				
+				pDataMS->SetCountF(--CEMFM::dwCountCurrPulse);
 				// If read all pulse - write data into BT COM port
 				if (CEMFM::dwCountCurrPulse == 0)
 				{
-					pDataMS->SetCountC(CEMFM::dwCountFullPulse);
-					pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
 					pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 				}
 			}
@@ -198,14 +195,11 @@ void setup()
 	// Enable Timer2 interrupt
 	MsTimer2::start();
 
-	// Set external interrupt ISR
-	//pinMode(TEST_PIN, INPUT);
-	//attachInterrupt(INT_1, ISR_InputImp, MODE_INT);
 							
 	#ifdef _DEBUG_TRACE
 		Serial.println("----- Starting, please press any key! -----");
 		Serial.print(" SERIAL_READ_TIMEOUT = "); Serial.print(SERIAL_READ_TIMEOUT);
-		Serial.print(" DELAY_BEFORE_READ_BT = "); Serial.print(DELAY_BEFORE_READ_BT);
+//		Serial.print(" DELAY_BEFORE_READ_BT = "); Serial.print(DELAY_BEFORE_READ_BT);
 		Serial.print(" FREQUENCY_TIMER2_MS = "); Serial.print(FREQUENCY_TIMER2_MS);
 		Serial.println();
 	#endif
@@ -218,9 +212,10 @@ void setup()
 void loop()
 {
 	// Press any key for start / stop loop
-	if (isKeyHit) {
+	if (isKeyHit) 
+	{
 		
-		noInterrupts();     // disable interrupts
+//		noInterrupts();     // disable interrupts
 
 		// Print number of loop
 		Serial.println(); Serial.print("Loop="); Serial.print(lCount); 
@@ -233,12 +228,12 @@ void loop()
 		pDataMS->SetTempr(fT);
 		pDataMS->SetPowerU(nU);
 		pDataMS->SetQ(fQ);
-		pDataMS->SetCountC(CEMFM::dwCountFullPulse);
-		pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
+		//pDataMS->SetCountC(CEMFM::dwCountFullPulse);
+		//pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
 		
 		isDataChange = TRUE;
 
-		interrupts();       // enable interrupts
+		//interrupts();       // enable interrupts
 
 		// Counter of loops
 		lCount++;
