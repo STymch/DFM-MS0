@@ -87,12 +87,14 @@
     <ClInclude Include="CEMFM.h" />
     <ClInclude Include="CommDef.h" />
     <ClInclude Include="CSerialPort.h" />
+    <ClInclude Include="CTemperatureSensor.h" />
     <ClInclude Include="__vm\.FMVI-MS.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CDataMS.cpp" />
     <ClCompile Include="CEMFM.cpp" />
     <ClCompile Include="CSerialPort.cpp" />
+    <ClCompile Include="CTemperatureSensor.cpp" />
   </ItemGroup>
   <PropertyGroup>
     <DebuggerFlavor>VisualMicroDebugger</DebuggerFlavor>

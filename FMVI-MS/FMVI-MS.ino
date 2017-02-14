@@ -29,7 +29,7 @@
 #include "CSerialPort.h"
 #include "CDataMS.h"
 #include "CEMFM.h"
-
+#include "CTemperatureSensor.h"
 
 
 // Global parameters
@@ -138,7 +138,7 @@ void ISR_InputPulse()
 	{
 		dwTimeBeginPulse = millis(); // save time of pulse begin
 	}
-	else	// pulse end, check it idth 
+	else	// pulse end, check it width 
 	{
 		if (millis() - dwTimeBeginPulse >= pEMFM->GetInpPulseWidth() ) // width of pulse correct
 		{
