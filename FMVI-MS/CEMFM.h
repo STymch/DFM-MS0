@@ -39,6 +39,7 @@ public:
 	// Static data
 	volatile static DWORD	dwCountFullPulse;	// Counter of all input pulses from EMFM/Generator from turn on FMVI-MS
 	volatile static DWORD	dwCountCurrPulse;	// Current counter for input pulses from EMFM/Generator
+	volatile static FLOAT	fQm3h;				// Current counter for input pulses from EMFM/Generator
 	
 	// Constructor, destructor
 	CEMFM(	INT nPulse_pin, INT nALM_FQH_pin, INT nALM_FQL_pin, INT nTypePulseFront, INT nTypeALM_FQH, INT nTypeALM_FQL,
@@ -67,9 +68,9 @@ public:
 				void (ISR)()	// external interrupt ISR
 	);
 
-	INT		GetPulsePin() { return m_nINP_PULSE_PIN;  }
+	INT		GetPulsePin()		{ return m_nINP_PULSE_PIN;  }
 	INT		GetTypePulseFront() { return m_nTypePulseFront; }
-	UINT	GetInpPulseWidth(){ return m_nInpPulseWidth; }
+	UINT	GetInpPulseWidth()	{ return m_nInpPulseWidth;	}
 };
 
 

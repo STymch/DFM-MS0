@@ -124,16 +124,5 @@ void loop()
 }
 
 
-// Read command from FMVI-CP
-if (!pSSerial->Read(pbBuffer)) {
-	// ¬ последовательном порту есть данные от FMVI-CP
-	// –азбор команды и ее выполнение
-	switch (код_команды) {
-
-
-
-	}
-	// «апись данных в пакет дл€ передачи в FMVI-CP 
-}
 
 

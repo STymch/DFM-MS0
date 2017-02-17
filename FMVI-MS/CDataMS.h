@@ -66,6 +66,9 @@ public:
 // <<< CCmndMS - class for structure of commands of FMVI-MS
 ///////////////////////////////////////////////////////
 const INT		CMND_LEN = 5;				// Max size of command in bytes
+// Command codes
+enum Cmnd { cmndPowerOff = 0x50, cmndSetImpInpPin = 0x69, cmndSetCount = 0x43 };
+
 class CCmndMS
 {
 protected:

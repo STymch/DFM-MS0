@@ -13,12 +13,12 @@
 /////////////////////////////////////////////////////////////////////////////////
 // Filename: FMVI-MS
 // Content:
-//  - определение и объявление общих глобальных данных
-//  - функции:
-//		setup()					- инициализация всех обьектов
-//		loop()					- бесконечный рабочий цикл системы
-//  - локальные функции:
-//		ReadTemperatureDS ( )	- запрос температуры среды из датчика типа DS18B20
+//  - declare global variables & const
+//  - functions:
+//		setup()				-	Initialisation FMVI-MS
+//		loop()				-	Working loop of FMVI-MS
+//		ISR_Timer2()		-	Timer2 ISR callback function
+//		ISR_InputPulse()	-	External interrupt ISR callback function
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CommDef.h"
@@ -51,7 +51,7 @@ const int   LED_PIN = 13;				// LED output pin
 // Arduino external interrupts
 const int	INT_0 = 0;					// external interrupt 0 (connect to digital pin 2)
 const int	INT_1 = 1;					// external interrupt 1 (connect to digital pin 3)
-const int	MODE_INT = CHANGE;			// mode of external interrupt
+const int	MODE_INT = CHANGE;			// mode of external interrupt: on change state pin
 
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
@@ -81,6 +81,7 @@ CSerialPort		*pBTSerialPort;	// For bluetooth modem
 				
 // Data structure of data of FMVI-MS
 CDataMS	*volatile pDataMS;
+CCmndMS *pCmndMS;
 
 // EMFM/Generator
 CEMFM *pEMFM;
@@ -103,14 +104,30 @@ decltype (isKeyHit) isKeyPress;
 void ISR_Timer2() {
 	static bool led_out = HIGH;
 	
-	// Write data into BT COM port
-	//if (isDataChange) 
-	{
-		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
-		isDataChange = FALSE;
+	// Read command from FMVI-CP
+	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
+		// Analize input command
+		switch (pCmndMS->GetCode()) {
+		// Set current pulse count 
+		case cmndSetCount:									
+			noInterrupts();									// disable interrupts
+			CEMFM::dwCountCurrPulse = pCmndMS->GetArg_dw();
+			if (CEMFM::dwCountCurrPulse == 0)				// if 0 - set count to -1
+				CEMFM::dwCountCurrPulse = DWORD(-1);
+			interrupts();									// enable interrupts
+			break;
+
+		case cmndPowerOff:									// Turn off power
+
+			break;
+		}
+
 	}
 
-	// Наращиваем счетчик тиков таймера
+	// Write data into BT COM port
+	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+	
+	// Increment timer's ticks
 	dwTimerTick++;
 	
 	// Switch on/off LED
@@ -143,12 +160,12 @@ void ISR_InputPulse()
 		if (millis() - dwTimeBeginPulse >= pEMFM->GetInpPulseWidth() ) // width of pulse correct
 		{
 			// Increment counter of all EMFM pulse
-			pDataMS->SetCountC(++CEMFM::dwCountFullPulse);
+			pDataMS->SetCountF(++CEMFM::dwCountFullPulse);
 
 			// Decrement current counter while > 0
 			if (CEMFM::dwCountCurrPulse > 0)
 			{
-				pDataMS->SetCountF(--CEMFM::dwCountCurrPulse);
+				pDataMS->SetCountC(--CEMFM::dwCountCurrPulse);
 				// If read all pulse - write data into BT COM port
 				if (CEMFM::dwCountCurrPulse == 0)
 				{
@@ -183,9 +200,10 @@ void setup()
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
 	pDataMS = new CDataMS;
+	pCmndMS = new CCmndMS;
 
 	CEMFM::dwCountFullPulse = 0;
-	CEMFM::dwCountCurrPulse = 10000L;
+	CEMFM::dwCountCurrPulse = DWORD(-1);
 
 	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, 50, 50, 50);
 	pEMFM->Init(INT_1, MODE_INT, ISR_InputPulse);
@@ -211,6 +229,49 @@ void setup()
 ///////////////////////////////////////////////////////////////
 void loop()
 {
+	
+	// Read command from FMVI-CP
+/*	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
+		// Analize input command
+		Serial.print("************************** INPUT COMMAND: "); 
+		Serial.print(pCmndMS->GetCode(), HEX); 
+		Serial.print(" ");
+		Serial.print(pCmndMS->GetArg_dw());
+		Serial.println("****************************************************************************************");
+		switch (pCmndMS->GetCode()) {
+		case cmndSetCount:		// Set current pulse count 
+			noInterrupts();     // disable interrupts
+			CEMFM::dwCountCurrPulse = pCmndMS->GetArg_dw();
+			if (CEMFM::dwCountCurrPulse == 0) CEMFM::dwCountCurrPulse = DWORD(-1);
+			interrupts();       // enable interrupts
+			break;
+
+		case cmndPowerOff:	// Turn off power
+
+			break;
+
+		case cmndSetImpInpPin:	// Set number input pin for input pulse
+
+			break;
+
+		}
+
+	}
+*/
+
+	// Read command from serial monitor 
+	if (Serial.available()) {
+		char ch = Serial.read();
+		switch (ch) {
+			case '0'...'9':
+				// v = v * 10 + ch - '0';
+				break;
+			
+			case 'p':
+				break;
+		}
+	}
+	
 	// Press any key for start / stop loop
 	if (isKeyHit) 
 	{
