@@ -63,9 +63,13 @@ const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port
 const DWORD	FREQUENCY_TIMER2_MS = 250;	// Timer2 period in milliseconds
 
 // Global variables
-volatile DWORD	CEMFM::dwCountFullPulse;	// Counter of all input pulses from EMFM/Generator from start
-volatile DWORD	CEMFM::dwCountCurrPulse;	// Current counter of input pulses from EMFM/Generator
+DWORD	dwCountBadPulse = 0;				// Counter bad input pulse packet (front less width)
 
+//volatile DWORD	CEMFM::dwCountFullPulse;	// Counter of all input pulses from EMFM/Generator from start
+//volatile DWORD	CEMFM::dwCountCurrPulse;	// Current counter of input pulses from EMFM/Generator
+//volatile FLOAT	CEMFM::fQm3h;				// Current flow m3/h
+//volatile UINT	CEMFM::nTimeInterval4Q;		// 
+	
 BYTE pBuff[DATA_LEN+1];
 
 
@@ -102,19 +106,26 @@ decltype (isKeyHit) isKeyPress;
 // Timer2 ISR callback function
 ///////////////////////////////////////////////////////////////
 void ISR_Timer2() {
-	static bool led_out = HIGH;
+	static	bool led_out = HIGH;
+	DWORD	dwCountCurrPulse;
 	
 	// Read command from FMVI-CP
 	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
 		// Analize input command
 		switch (pCmndMS->GetCode()) {
+		
 		// Set current pulse count 
 		case cmndSetCount:									
-			noInterrupts();									// disable interrupts
-			CEMFM::dwCountCurrPulse = pCmndMS->GetArg_dw();
-			if (CEMFM::dwCountCurrPulse == 0)				// if 0 - set count to -1
-				CEMFM::dwCountCurrPulse = DWORD(-1);
-			interrupts();									// enable interrupts
+//			noInterrupts();									// disable interrupts
+			dwCountCurrPulse = pCmndMS->GetArg_dw();// current pulse count value
+			if (dwCountCurrPulse == 0)				// if 0 - set count to -1
+				dwCountCurrPulse = DWORD(-1);
+			
+			// Save current pulse count
+			pEMFM->SetCountCurr(dwCountCurrPulse);	
+			// Save current pulse count into data packet
+			pDataMS->SetCountC(dwCountCurrPulse);
+			//			interrupts();									// enable interrupts
 			break;
 
 		case cmndPowerOff:									// Turn off power
@@ -123,6 +134,9 @@ void ISR_Timer2() {
 		}
 
 	}
+
+	// Calculate current flow Q
+	pDataMS->SetQ(pEMFM->CalculateQ());
 
 	// Write data into BT COM port
 	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
@@ -140,42 +154,39 @@ void ISR_Timer2() {
 ///////////////////////////////////////////////////////////////
 void ISR_InputPulse()
 {
-	DWORD dwTimeBeginPulse;	// time of begin pulse
-
-	// Increment counter of all EMFM pulse
-	//CEMFM::dwCountFullPulse++;
-
-	// Decrement read pulse counter while > 0
-	//if (CEMFM::dwCountCurrPulse > 0) CEMFM::dwCountCurrPulse--;
-
 	// Disable all interrupts
-	noInterrupts();
-	// Read pulse pin state
-	if (digitalRead(pEMFM->GetPulsePin()) == pEMFM->GetTypePulseFront()) // pin state is front of pulse - pulse begin
+	//noInterrupts();
+	// Read pulse pin state - is pin state is front?
+	if (pEMFM->isPulseFront()) // pulse begin
+		pEMFM->SetTStartPulse(millis()); // save time of pulse begin
+	else	// pulse end, check correct pulse 
 	{
-		dwTimeBeginPulse = millis(); // save time of pulse begin
-	}
-	else	// pulse end, check it width 
-	{
-		if (millis() - dwTimeBeginPulse >= pEMFM->GetInpPulseWidth() ) // width of pulse correct
+		if (pEMFM->isPulse(millis()) ) // pulse correct
 		{
 			// Increment counter of all EMFM pulse
-			pDataMS->SetCountF(++CEMFM::dwCountFullPulse);
+			pEMFM->SetCountFull(pEMFM->GetCountFull() + 1);
+			// Save new counter in data packet
+			pDataMS->SetCountF(pEMFM->GetCountFull());
 
 			// Decrement current counter while > 0
-			if (CEMFM::dwCountCurrPulse > 0)
+			if (pEMFM->GetCountCurr() > 0)
 			{
-				pDataMS->SetCountC(--CEMFM::dwCountCurrPulse);
-				// If read all pulse - write data into BT COM port
-				if (CEMFM::dwCountCurrPulse == 0)
-				{
-					pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
-				}
+				// Decrement counter
+				pEMFM->SetCountCurr(pEMFM->GetCountCurr() - 1);
+				// Save new counter in data packet
+				pDataMS->SetCountC(pEMFM->GetCountCurr());
+				// If current counter == 0 - write data packet into BT COM port
+				if (pEMFM->GetCountCurr() == 0)
+					pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);				
 			}
+		}
+		else	// incorrect pulse, counting!
+		{
+			dwCountBadPulse++;
 		}
 	}
 	// Enable all interrupts
-	interrupts();
+	//interrupts();
 }
 
 
@@ -202,11 +213,11 @@ void setup()
 	pDataMS = new CDataMS;
 	pCmndMS = new CCmndMS;
 
-	CEMFM::dwCountFullPulse = 0;
-	CEMFM::dwCountCurrPulse = DWORD(-1);
+	//CEMFM::dwCountFullPulse = 0;
+	//CEMFM::dwCountCurrPulse = DWORD(-1);
 
-	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, 50, 50, 50);
-	pEMFM->Init(INT_1, MODE_INT, ISR_InputPulse);
+	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, 5, 50, 50);
+	pEMFM->Init(0, DWORD(-1), 500, 2*FREQUENCY_TIMER2_MS, INT_1, MODE_INT, ISR_InputPulse);
 
 	// Set Timer2 period milliseconds
 	MsTimer2::set(FREQUENCY_TIMER2_MS, ISR_Timer2);
@@ -277,18 +288,23 @@ void loop()
 	{
 		
 //		noInterrupts();     // disable interrupts
-
-		// Print number of loop
-		Serial.println(); Serial.print("Loop="); Serial.print(lCount); 
-		Serial.print("\tTimerTick="); Serial.print(dwTimerTick);
-		Serial.print("\tCountFullPulse="); Serial.print(CEMFM::dwCountFullPulse);
-		Serial.print("\tCountCurrPulse="); Serial.println(CEMFM::dwCountCurrPulse);
+		//if (lCount % 100 == 0)
+		if (dwTimerTick % 10 == 0)
+		{
+			// Print number of loop
+			Serial.println();		Serial.print(""); Serial.print(lCount);
+			Serial.print("\tTT=");	Serial.print(dwTimerTick);
+			Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull());
+			Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr());
+			Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
+			Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr());
+		}
 
 		// Fill data
 		pDataMS->SetStatus(BYTE(nStatus));
 		pDataMS->SetTempr(fT);
 		pDataMS->SetPowerU(nU);
-		pDataMS->SetQ(fQ);
+//		pDataMS->SetQ(fQ);
 		//pDataMS->SetCountC(CEMFM::dwCountFullPulse);
 		//pDataMS->SetCountF(CEMFM::dwCountCurrPulse);
 		
@@ -303,7 +319,7 @@ void loop()
 		nStatus++;
 		fT += 0.01;
 		nU++;
-		fQ += 0.01;
+//		fQ += 0.01;
 	}
 	// Check press key
 	if (Serial.available()){

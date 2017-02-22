@@ -15,6 +15,14 @@
 #define _DEBUG_TRACE
 #endif
 
+// --- TRUE, FALSE
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE  1
+#endif
+
 // --- рхош дюммшу
 typedef		unsigned			char	BYTE;	// 1 byte
 typedef		unsigned			short	WORD;	// 2 byte
