@@ -39,14 +39,14 @@ public:
 	~CDataMS() {}
 
 	// Get pointer to data
-	BYTE*	GetDataMS() { return m_pDataMS;		}
-	BYTE	GetLen()	{ return m_bLen;		}
-	BYTE	GetStatus() { return m_bStatus;		}
-	FLOAT	GetTempr()	{ return m_fTempr;		}
-	UINT	GetPowerU() { return m_nPowerU;		}
-	FLOAT	GetQ()		{ return m_fQ;			}
-	DWORD	GetCountF() { return m_dwCountFull; }
-	DWORD	GetCountC() { return m_dwCountCurr; }
+	BYTE*	GetDataMS()		{ return m_pDataMS;		}
+	BYTE	GetLen()		{ return m_bLen;		}
+	BYTE	GetStatus()		{ return m_bStatus;		}
+	FLOAT	GetTempr()		{ return m_fTempr;		}
+	UINT	GetPowerU()		{ return m_nPowerU;		}
+	FLOAT	GetQ()			{ return m_fQ;			}
+	DWORD	GetCountFull()	{ return m_dwCountFull; }
+	DWORD	GetCountCurr()	{ return m_dwCountCurr; }
 
 
 	// Set data from buffer of bytes
@@ -57,8 +57,8 @@ public:
 	void	SetTempr(FLOAT fT)		{ m_fTempr = fT;		}
 	void	SetPowerU(UINT nU)		{ m_nPowerU = nU;		}
 	void	SetQ(FLOAT fQ)			{ m_fQ = fQ;			}
-	void	SetCountF(DWORD dwC)	{ m_dwCountFull = dwC;	}
-	void	SetCountC(DWORD dwC)	{ m_dwCountCurr = dwC;	}
+	void	SetCountFull(DWORD dwC)	{ m_dwCountFull = dwC;	}
+	void	SetCountCurr(DWORD dwC)	{ m_dwCountCurr = dwC;	}
 
 };
 
