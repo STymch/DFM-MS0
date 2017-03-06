@@ -67,7 +67,11 @@ public:
 ///////////////////////////////////////////////////////
 const INT		CMND_LEN = 5;				// Max size of command in bytes
 // Command codes
-enum Cmnd { cmndPowerOff = 0x50, cmndSetImpInpPin = 0x69, cmndSetCount = 0x43 };
+enum Cmnd	{	cmndPowerOff		= 0x50,	// FMVI-MS Power OFF
+				cmndSetImpInpPin	= 0x69,	// Set number of pulse input pin	
+				cmndSetCount		= 0x43,	// Set current counter (DWORD arg), if 0 - be set in DWORD(-1)
+				cmndReadTempr		= 0x54	// Read temperature from sensor
+			};
 
 class CCmndMS
 {

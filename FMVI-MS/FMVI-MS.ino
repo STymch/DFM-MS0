@@ -18,7 +18,10 @@
 //		setup()				-	Initialisation FMVI-MS
 //		loop()				-	Working loop of FMVI-MS
 //		ISR_Timer2()		-	Timer2 ISR callback function
-//		ISR_InputPulse()	-	External interrupt ISR callback function
+//		ISR_InputPulse1()	-	External interrupt ISR callback function, antitinkling ON
+//		ISR_InputPulse2()	-	External interrupt ISR callback function, antitinkling OFF
+//		BTSerialReadCmnd()	-	Read command from FMVI-CP by BT Serial Port
+//		SerialUI()			-	User interface by srial port
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CommDef.h"
@@ -47,33 +50,30 @@ const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC
 const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
 const int   LED_PIN = 13;				// LED output pin
 
-// Arduino external interrupts
-//const int	INT_0 = 0;					// external interrupt 0 (connect to digital pin 2)
-//const int	INT_1 = 1;					// external interrupt 1 (connect to digital pin 3)
-//const int	MODE_INT = CHANGE;			// mode of external interrupt: on change state pin
-
-
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Time parameters
-const int	DELAY_BEFORE_READ_BT = 250;	// Delay before read data from BT COM port, millises
-const DWORD	FREQUENCY_TIMER2_MS = 250;	// Timer2 period in milliseconds
+const DWORD	DELAY_LOOP_MS = 100;		// Delay for main loop, millises
+const DWORD	FREQ_TIMER2_MS = 100;		// Timer2 period in milliseconds
 
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
 
 // Global variables
-DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (front less width)
+DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < width)
 int		nPulseWidth = 0;				// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
 int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-DWORD	lTInterval4Q = 750;				// Interval (ms) for calculate current flow Q
+DWORD	lTInterval4Q = 5*FREQ_TIMER2_MS;// Interval (ms) for calculate current flow Q
 int		nEXT_INT_MODE = CHANGE;			// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
+void(*pISR)();							// Pointer to external interrupt ISR function 
 
-bool	isAntiTinklingOn = true;		// Antitinkling flag: true - On, false - Off
+bool	isMeasuring = false;			// Measuring state flag: true - measuring ON, false - measuring OFF
+bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
+
 BYTE	pBuff[DATA_LEN+1];
 
 bool	isSerialPrn = true;
@@ -123,10 +123,18 @@ void setup()
 	pCmndMS = new CCmndMS;
 
 	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
-	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, ISR_InputPulse);
+	if (isAntiTinklingOn) {	// antitinkling is ON
+		nEXT_INT_MODE = CHANGE;
+		pISR = ISR_InputPulse1;
+	}
+	else {					// antitinkling is OFF
+		nEXT_INT_MODE = FALLING;
+		pISR = ISR_InputPulse2;
+	}
+	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
 	// Set Timer2 period milliseconds
-	MsTimer2::set(FREQUENCY_TIMER2_MS, ISR_Timer2);
+	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
 	// Enable Timer2 interrupt
 	MsTimer2::start();
 }
@@ -136,10 +144,16 @@ void setup()
 ///////////////////////////////////////////////////////////////
 void loop()
 {
+	// Read command from FMVI-CP BT serial port
+	::BTSerialReadCmnd();
+	
+	// Write data into BT COM port
+	noInterrupts();
+	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+	interrupts();
 	
 	// Read and execute command from serial port
-	::SerialUserInterface();
-
+	::SerialUI();
 	
 	// Test print
 	//if (lCount % 100 == 0)
@@ -170,6 +184,9 @@ void loop()
 	nStatus++;
 	fT += 0.01;
 	nU++;
+	
+	// Delay for other tasks
+	delay(DELAY_LOOP_MS);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -177,40 +194,9 @@ void loop()
 ///////////////////////////////////////////////////////////////
 void ISR_Timer2() {
 	static	bool	led_out = HIGH;
-	static	DWORD	dwCountPulse1 = 0, dwCountPulse2 = 0;
-	float	fQ;
-	DWORD	dwCountCurr;
-
-	// Read command from FMVI-CP
-	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
-		// Analize input command
-		switch (pCmndMS->GetCode()) {
-		case cmndSetCount:			// Set current pulse count 
-			// if 0 - set count to DWORD(-1)
-			if ((dwCountCurr = pCmndMS->GetArg_dw()) == 0)	dwCountCurr = DWORD(-1);
-			// Save current pulse count
-			pEMFM->SetCountCurr(dwCountCurr);
-			// Save current pulse count into data packet
-			pDataMS->SetCountCurr(dwCountCurr);
-			break;
-
-		case cmndPowerOff:			// Turn off power
-
-			break;
-		}
-
-	}
-
+	
 	// Calculate current flow Q
-//	dwCountPulse2 = pEMFM->GetCountFull();
 	pDataMS->SetQ(pEMFM->CalculateQ());
-//	fQ = 3600.0F * (dwCountPulse2 - dwCountPulse1) / (PULSE_UNIT_LTR * FREQUENCY_TIMER2_MS);
-//	pDataMS->SetQ(fQ);
-//	pEMFM->SetQCurr(fQ);
-//	dwCountPulse1 = dwCountPulse2;
-
-	// Write data into BT COM port
-	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 
 	// Increment timer's ticks
 	dwTimerTick++;
@@ -221,9 +207,9 @@ void ISR_Timer2() {
 }
 
 ///////////////////////////////////////////////////////////////
-// External interrupt ISR callback function
+// External interrupt ISR callback function, antitinkling is on
 ///////////////////////////////////////////////////////////////
-void ISR_InputPulse()
+void ISR_InputPulse1()
 {
 	// Read pulse pin state - is pin state is front?
 	if (pEMFM->isPulseFront()) // pulse begin
@@ -244,9 +230,9 @@ void ISR_InputPulse()
 				pEMFM->SetCountCurr(pEMFM->GetCountCurr() - 1);
 				// Save new counter in data packet
 				pDataMS->SetCountCurr(pEMFM->GetCountCurr());
-				// If current counter == 0 - write data packet into BT COM port
-				if (pEMFM->GetCountCurr() == 0)
-					pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
+				
+				// If current counter == 0 - set flag of measuring OFF
+				if (pEMFM->GetCountCurr() == 0)	isMeasuring = false;
 			}
 		}
 		else	// incorrect pulse, counting!
@@ -255,11 +241,73 @@ void ISR_InputPulse()
 		}
 	}
 }
+///////////////////////////////////////////////////////////////
+// External interrupt ISR callback function, antitinkling is off
+///////////////////////////////////////////////////////////////
+void ISR_InputPulse2()
+{
+	// Increment counter of all EMFM pulse
+	pEMFM->SetCountFull(pEMFM->GetCountFull() + 1);
+	// Save new counter in data packet
+	pDataMS->SetCountFull(pEMFM->GetCountFull());
+
+	// Decrement current counter while > 0
+	if (pEMFM->GetCountCurr() > 0)
+	{
+		// Decrement counter
+		pEMFM->SetCountCurr(pEMFM->GetCountCurr() - 1);
+		// Save new counter in data packet
+		pDataMS->SetCountCurr(pEMFM->GetCountCurr());
+
+		// If current counter == 0 - set flag of measuring OFF
+		if (pEMFM->GetCountCurr() == 0) isMeasuring = false;
+	}
+}
+
+///////////////////////////////////////////////////////////////
+// Read command from FMVI-CP
+///////////////////////////////////////////////////////////////
+void BTSerialReadCmnd()
+{
+	DWORD	dwCountCurr;
+
+	// Read command from FMVI-CP
+	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
+		// Analize input command
+		switch (pCmndMS->GetCode()) 
+		{
+			case cmndSetCount:			// Set current pulse count 
+				// if 0 - set count to DWORD(-1)
+				if ((dwCountCurr = pCmndMS->GetArg_dw()) == 0)
+				{
+					dwCountCurr = DWORD(-1);// set -1 for current counter
+					isMeasuring = false;	// set flag of measuring OFF
+				}
+				// Save current pulse count
+				pEMFM->SetCountCurr(dwCountCurr);
+				// Save current pulse count into data packet
+				pDataMS->SetCountCurr(dwCountCurr);
+				// Set flag of measuring ON
+				isMeasuring = true;
+				break;
+
+			case cmndPowerOff:			// Turn off power
+
+				break;
+		
+		
+			case cmndReadTempr:			// Read temperature from sensor
+
+				break;
+		}
+
+	}
+}
 
 ///////////////////////////////////////////////////////////////
 // User interface for srial port
 ///////////////////////////////////////////////////////////////
-void SerialUserInterface()
+void SerialUI()
 {
 	// Read command from serial monitor 
 	if (Serial.available()) {
