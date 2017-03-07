@@ -64,10 +64,10 @@ const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
 
 // Global variables
 DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < width)
-int		nPulseWidth = 0;				// Width in millisec of EMFM output pulse
+int		nPulseWidth = 1;				// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
 int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-DWORD	lTInterval4Q = 5*FREQ_TIMER2_MS;// Interval (ms) for calculate current flow Q
+DWORD	lTInterval4Q = 500;				// Interval (ms) for calculate current flow Q
 int		nEXT_INT_MODE = CHANGE;			// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
 void(*pISR)();							// Pointer to external interrupt ISR function 
 
@@ -123,6 +123,7 @@ void setup()
 	pCmndMS = new CCmndMS;
 
 	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
+	isAntiTinklingOn = false;
 	if (isAntiTinklingOn) {	// antitinkling is ON
 		nEXT_INT_MODE = CHANGE;
 		pISR = ISR_InputPulse1;
@@ -133,10 +134,11 @@ void setup()
 	}
 	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
+
 	// Set Timer2 period milliseconds
-	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
+//	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
 	// Enable Timer2 interrupt
-	MsTimer2::start();
+//	MsTimer2::start();
 }
 
 ///////////////////////////////////////////////////////////////
@@ -155,9 +157,12 @@ void loop()
 	// Read and execute command from serial port
 	::SerialUI();
 	
+	// Calculate current flow Q
+	//pDataMS->SetQ(pEMFM->CalculateQ());
+
 	// Test print
-	//if (lCount % 100 == 0)
-	if (dwTimerTick % 10 == 0 && isSerialPrn)
+	if (lCount % 10 == 0 && isSerialPrn)
+//	if (dwTimerTick % 10 == 0 && isSerialPrn)
 	{
 		// Print number of loop
 		Serial.println();		Serial.print(""); Serial.print(lCount);
@@ -168,22 +173,23 @@ void loop()
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 6);
 		isSerialPrn = !isSerialPrn;
 	}
-	else if (dwTimerTick % 10 != 0)
+	else 
+//		if (dwTimerTick % 10 != 0)
+		if (lCount % 10 != 0)
 			if (!isSerialPrn) isSerialPrn = !isSerialPrn;
+
+	// Change data
+	nStatus++;
+	fT += 0.01;
+	nU++;
 
 	// Fill data
 	pDataMS->SetStatus(BYTE(nStatus));
 	pDataMS->SetTempr(fT);
 	pDataMS->SetPowerU(nU);
-		
 
 	// Counter of loops
 	lCount++;
-		
-	// Change data
-	nStatus++;
-	fT += 0.01;
-	nU++;
 	
 	// Delay for other tasks
 	delay(DELAY_LOOP_MS);
@@ -196,7 +202,7 @@ void ISR_Timer2() {
 	static	bool	led_out = HIGH;
 	
 	// Calculate current flow Q
-	pDataMS->SetQ(pEMFM->CalculateQ());
+//	pDataMS->SetQ(pEMFM->CalculateQ());
 
 	// Increment timer's ticks
 	dwTimerTick++;
@@ -240,6 +246,9 @@ void ISR_InputPulse1()
 			dwCountBadPulse++;
 		}
 	}
+
+	// Calculate current flow Q
+	pDataMS->SetQ(pEMFM->CalculateQ());
 }
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function, antitinkling is off
@@ -262,6 +271,9 @@ void ISR_InputPulse2()
 		// If current counter == 0 - set flag of measuring OFF
 		if (pEMFM->GetCountCurr() == 0) isMeasuring = false;
 	}
+
+	// Calculate current flow Q
+	pDataMS->SetQ(pEMFM->CalculateQ());
 }
 
 ///////////////////////////////////////////////////////////////
