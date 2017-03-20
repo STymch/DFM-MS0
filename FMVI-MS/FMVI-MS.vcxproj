@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{447B9C88-9C97-4A8F-95BC-0E9AF004795D}</ProjectGuid>
     <RootNamespace>$safeprojectname$</RootNamespace>
-    <ProjectName>FMVI-MS</ProjectName>
+    <ProjectName>DFM-MS</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -78,7 +78,7 @@
     <ProjectCapability Include="VisualMicro" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FMVI-MS.ino">
+    <None Include="DFM-MS.ino">
       <FileType>CppCode</FileType>
     </None>
   </ItemGroup>

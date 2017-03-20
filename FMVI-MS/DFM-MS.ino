@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////////
-// --- Flowmeter verification installation - working measurement standard  ---
+// ---Working Measurement Standard - Digital Flowmeter (DFM-WMS)  ---
 /////////////////////////////////////////////////////////////////////////////////
-// --- Flowmeter verification installation measuring system: FMVI-MS
+// --- Digital Flowmeter Measuring System: DFM-MS
 /////////////////////////////////////////////////////////////////////////////////
 // Copyright (C) 2016 by Sergiy Tymchenko
 // All rights reserved.
@@ -11,7 +11,7 @@
 // Skype: stymch2008
 // E-mail : stymch@gmail.com
 /////////////////////////////////////////////////////////////////////////////////
-// Filename: FMVI-MS
+// Filename: DFM-MS
 // Content:
 //  - declare global variables & const
 //  - functions:
