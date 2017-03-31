@@ -5,7 +5,7 @@
 */
 
 
-int analogPin = 0;	// potentiometer wiper (middle terminal) connected to analog pin 3
+int analogPin = 1;	// potentiometer wiper (middle terminal) connected to analog pin 3
 					// outside leads to ground and +5V
 int val = 0;		// variable to store the value read
 
@@ -16,6 +16,11 @@ void setup() {
 
 // the loop function runs over and over again until power down or reset
 void loop() {
-	val = analogRead(analogPin);	// read the input pin
-	Serial.println(val);            // debug value 
+	float fV;											// volts
+	val =	analogRead(analogPin);						// read the input pin
+	fV = 5.0f * val / 1024.0f;
+	Serial.print("Inp="); Serial.print(val);	        
+	Serial.print("\tV="); Serial.println(fV);	        
+
+	delay(1000);
 }
