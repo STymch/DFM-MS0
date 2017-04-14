@@ -1,4 +1,5 @@
 ﻿
+#include <HTU21D.h>
 #include "CommDef.h"
 
 // SoftwareSerial library
