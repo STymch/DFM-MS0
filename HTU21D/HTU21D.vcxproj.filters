@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SparkFun_HTU21D.ino" />
+    <None Include="HTU21D.ino" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="__vm\.SparkFun_HTU21D.vsarduino.h">
+    <ClInclude Include="__vm\.HTU21D.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
