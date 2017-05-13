@@ -63,10 +63,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries\MsTimer2;$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries\OneWire;c:\Program Files (x86)\Arduino\libraries;c:\Program Files (x86)\Arduino\hardware\arduino\avr\libraries;$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries;c:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino;c:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\standard;$(ProjectDir)..\DFM-MS;c:\Program Files (x86)\Arduino\hardware\tools\avr\avr\include\;c:\Program Files (x86)\Arduino\hardware\tools\avr\avr\include\avr\;c:\Program Files (x86)\Arduino\hardware\tools\avr\lib\gcc\avr\4.8.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>c:\Program Files (x86)\Arduino\hardware\arduino\avr\libraries\SoftwareSerial\src;$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries\OneWire;$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries\HTU21D;c:\Program Files (x86)\Arduino\hardware\arduino\avr\libraries\Wire\src;c:\Program Files (x86)\Arduino\libraries;c:\Program Files (x86)\Arduino\hardware\arduino\avr\libraries;$(ProjectDir)..\..\..\..\Cloud\YandexDisk\Work\Arduino\libraries;c:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino;c:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\standard;$(ProjectDir)..\DFM-MS;c:\Program Files (x86)\Arduino\hardware\tools\avr\avr\include\;c:\Program Files (x86)\Arduino\hardware\tools\avr\avr\include\avr\;c:\Program Files (x86)\Arduino\hardware\tools\avr\lib\gcc\avr\4.8.1\include;c:\Program Files (x86)\Arduino\hardware\tools\avr\lib\gcc\avr\4.9.2\include;c:\Program Files (x86)\Arduino\hardware\tools\avr\lib\gcc\avr\4.9.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>$(ProjectDir)__vm\.DFM-MS.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <PreprocessorDefinitions>__AVR_ATmega328p__;__AVR_ATmega328P__;F_CPU=16000000L;ARDUINO=10802;ARDUINO_AVR_UNO;ARDUINO_ARCH_AVR;__cplusplus=201103L;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__AVR_ATmega328p__;__AVR_ATmega328P__;F_CPU=16000000L;ARDUINO=10802;ARDUINO_AVR_UNO;ARDUINO_ARCH_AVR;__cplusplus=201103L;_VMICRO_INTELLISENSE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -86,6 +86,7 @@
     <ClInclude Include="CDataMS.h" />
     <ClInclude Include="CEMFM.h" />
     <ClInclude Include="CommDef.h" />
+    <ClInclude Include="CRHTSensor.h" />
     <ClInclude Include="CSerialPort.h" />
     <ClInclude Include="CTemperatureSensor.h" />
     <ClInclude Include="__vm\.DFM-MS.vsarduino.h" />
@@ -94,6 +95,7 @@
   <ItemGroup>
     <ClCompile Include="CDataMS.cpp" />
     <ClCompile Include="CEMFM.cpp" />
+    <ClCompile Include="CRHTSensor.cpp" />
     <ClCompile Include="CSerialPort.cpp" />
     <ClCompile Include="CTemperatureSensor.cpp" />
   </ItemGroup>

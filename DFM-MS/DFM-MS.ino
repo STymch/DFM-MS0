@@ -26,13 +26,14 @@
 
 #include "CommDef.h"
 //#include <EEPROM.h>		
-#include <OneWire.h>
-#include <MsTimer2.h>
+//#include <OneWire.h>
+//#include <MsTimer2.h>
 
 #include "CSerialPort.h"
 #include "CDataMS.h"
 #include "CEMFM.h"
 #include "CTemperatureSensor.h"
+#include "CRHTSensor.h"
 
 // Global parameters
 // Arduino analog GPIO
@@ -87,19 +88,26 @@ DWORD	dwTimerTick = 0;
 // Serial ports
 CSerialPort		*pBTSerialPort;	// For bluetooth modem 
 				
-// Data structure of data of FMVI-MS
+// Data structure of data of DFM-MS
 CDataMS	*volatile pDataMS;
 CCmndMS *pCmndMS;
 
 // EMFM/Generator
 CEMFM *pEMFM;
 
+// Air compensated humidity and temperature sensor
+CRHTSensor	*pRHTSensor;
+
+// Water temperature sensor
+CTemperatureSensor	*pTemperatureSensor;
+
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire DSTempSensor(TEMP_PIN);
 
 INT		nStatus = 0;
-FLOAT	fT = 0.5, fQ = 0.01;
-UINT	nU = 2;
+FLOAT	fTAir = 15.2, fRHumidityAir = 45.4, fTWater = 0.5, fQ = 0.01;
+DWORD	lTimeInt = 25000L;
+UINT	nU = 749;
 
 ///////////////////////////////////////////////////////////////
 // Initialisation FMVI-MS
@@ -135,6 +143,12 @@ void setup()
 	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
 
+	pRHTSensor = new CRHTSensor();
+	//pRHTSensor->Init();
+
+	pTemperatureSensor = new CTemperatureSensor();
+	pTemperatureSensor->Init();
+
 	// Set Timer2 period milliseconds
 //	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
 	// Enable Timer2 interrupt
@@ -142,11 +156,11 @@ void setup()
 }
 
 ///////////////////////////////////////////////////////////////
-// Working loop of FMVI-MS
+// Working loop of DFM-MS
 ///////////////////////////////////////////////////////////////
 void loop()
 {
-	// Read command from FMVI-CP BT serial port
+	// Read command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
 	
 	// Write data into BT COM port
@@ -171,6 +185,9 @@ void loop()
 		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr());
 		Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 6);
+		Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
+		Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
+		Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
 		isSerialPrn = !isSerialPrn;
 	}
 	else 
@@ -180,12 +197,14 @@ void loop()
 
 	// Change data
 	nStatus++;
-	fT += 0.01;
-	nU++;
+	fTWater += 0.01;
+	nU--;
 
 	// Fill data
 	pDataMS->SetStatus(BYTE(nStatus));
-	pDataMS->SetTempr(fT);
+	pDataMS->SetTemprWater(fTWater);
+	pDataMS->SetTemprAir(fTAir);
+	pDataMS->SetRHumidityAir(fRHumidityAir);
 	pDataMS->SetPowerU(nU);
 
 	// Counter of loops
@@ -308,7 +327,10 @@ void BTSerialReadCmnd()
 				break;
 		
 		
-			case cmndReadTempr:			// Read temperature from sensor
+			case cmndReadTemprWater:			// Read water temperature from sensor
+				if (!isMeasuring) {
+					// Read
+				}
 
 				break;
 		}

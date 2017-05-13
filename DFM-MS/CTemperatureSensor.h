@@ -18,9 +18,12 @@ class CTemperatureSensor
 
  public:
 	void Init();
+
+	// Constructor, destructor
+	CTemperatureSensor() {}
+	~CTemperatureSensor() {}
 };
 
-extern CTemperatureSensor TemperatureSensor;
 
 #endif
 

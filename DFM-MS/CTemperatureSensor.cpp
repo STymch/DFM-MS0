@@ -65,7 +65,7 @@ void CTemperatureSensor::Init()
 		return;
 	}
 
-	// ќжидание команды из последовательного порта на измерение температуры
+	/* // ќжидание команды из последовательного порта на измерение температуры
 	Serial.println("Waiting command...");
 
 	while (Serial.available() <= 0);
@@ -78,6 +78,7 @@ void CTemperatureSensor::Init()
 	// анализируем команду
 	if (nInpByte == 49) // 1
 	{
+	*/
 		Serial.println("Requesting temperatures...");
 		DS.reset();
 		DS.select(addr);
@@ -138,10 +139,8 @@ void CTemperatureSensor::Init()
 		Serial.print("Temperatures = ");
 		Serial.print(Tcelsius);   Serial.print(" C, ");
 		Serial.print(Tfahrenheit); Serial.println(" F");
-	}
+	//}
 
 }
 
-
-CTemperatureSensor TemperatureSensor;
 
