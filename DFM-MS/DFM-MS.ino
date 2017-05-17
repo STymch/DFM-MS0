@@ -75,11 +75,11 @@ void(*pISR)();							// Pointer to external interrupt ISR function
 bool	isMeasuring = false;			// Measuring state flag: true - measuring ON, false - measuring OFF
 bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
 
-BYTE	pBuff[DATA_LEN+1];
+byte	pBuff[DATA_LEN+1];
 
 bool	isSerialPrn = true;
 
-INT		i, nLen;
+int		i, nLen;
 long	lCount = 0;
 int		nTypeSerial = 1; // 0 - hardware, 1 - software
 DWORD	dwTimerTick = 0;
@@ -104,7 +104,7 @@ CTemperatureSensor	*pTemperatureSensor;
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire DSTempSensor(TEMP_PIN);
 
-INT		nStatus = 0;
+byte	bStatus = 0;
 FLOAT	fTAir = 15.2, fRHumidityAir = 45.4, fTWater = 0.5, fQ = 0.01;
 DWORD	lTimeInt = 25000L;
 UINT	nU = 749;
@@ -174,38 +174,42 @@ void loop()
 	// Calculate current flow Q
 	//pDataMS->SetQ(pEMFM->CalculateQ());
 
-	// Test print
-	if (lCount % 10 == 0 && isSerialPrn)
-//	if (dwTimerTick % 10 == 0 && isSerialPrn)
-	{
-		// Print number of loop
-		Serial.println();		Serial.print(""); Serial.print(lCount);
-		Serial.print("\tTT=");	Serial.print(dwTimerTick);
-		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull());
-		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr());
-		Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
-		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 6);
-		Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
-		Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
-		Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
-		isSerialPrn = !isSerialPrn;
-	}
-	else 
-//		if (dwTimerTick % 10 != 0)
-		if (lCount % 10 != 0)
-			if (!isSerialPrn) isSerialPrn = !isSerialPrn;
-
 	// Change data
-	nStatus++;
+	if (lCount % 100 == 0) bStatus = !bStatus;
+	fTAir += 0.01;
 	fTWater += 0.01;
-	nU--;
+	fRHumidityAir += 0.01;
+	if (lCount % 200 == 0) nU--;
 
 	// Fill data
-	pDataMS->SetStatus(BYTE(nStatus));
+	pDataMS->SetStatus(bStatus);
 	pDataMS->SetTemprWater(fTWater);
 	pDataMS->SetTemprAir(fTAir);
 	pDataMS->SetRHumidityAir(fRHumidityAir);
 	pDataMS->SetPowerU(nU);
+	pDataMS->SetTimeInt(lTimeInt);
+	
+	// Test print
+	if (lCount % 10 == 0 && isSerialPrn)
+		//	if (dwTimerTick % 10 == 0 && isSerialPrn)
+	{
+		// Print number of loop
+		Serial.println();		Serial.print(""); Serial.print(lCount);
+		//		Serial.print("\tTT=");	Serial.print(dwTimerTick);
+		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull());
+		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr());
+		//		Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
+		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
+		Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
+		Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
+		Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
+		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
+		//		isSerialPrn = !isSerialPrn;
+	}
+//	else
+		//		if (dwTimerTick % 10 != 0)
+		//		if (lCount % 10 != 0)
+		//			if (!isSerialPrn) isSerialPrn = !isSerialPrn;
 
 	// Counter of loops
 	lCount++;
