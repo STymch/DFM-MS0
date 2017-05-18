@@ -172,10 +172,10 @@ void loop()
 	::SerialUI();
 	
 	// Calculate current flow Q
-	//pDataMS->SetQ(pEMFM->CalculateQ());
+	//pDataMS->SetQ(pEMFM->Calculate	Q());
 
 	// Change data
-	if (lCount % 100 == 0) bStatus = !bStatus;
+	if (lCount % 100 == 0) bStatus = ~bStatus;
 	fTAir += 0.01;
 	fTWater += 0.01;
 	fRHumidityAir += 0.01;

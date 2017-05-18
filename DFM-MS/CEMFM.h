@@ -44,6 +44,11 @@ protected:
 	DWORD	m_lTInterval4Q;				// Interval (ms) for calculate current flow
 	int		m_nPulseOnLtr;				// Number of pulse from EMFM for 1 ltr water
 	bool	m_isQCalculate = TRUE;		// Flag: 1 - current Q is calculated, 0 - current Q not calculated.
+	// Timer for calculate time
+	
+	bool	m_isTimerStart = FALSE;		// Flag: 1 - timer is start, 0 - timer is stop.
+	DWORD	m_lTStartTimer;				// Time in ms of starting timer
+	DWORD	m_lTTimerInterval;			// Interval (ms) for timer
 	
 public:
 	// Constructor, destructor
@@ -94,6 +99,12 @@ public:
 	float	CalculateQ();
 	float	GetQCurr()						{ return m_fQm3h; }
 	void	SetQCurr(float fQ)				{ m_fQm3h = fQ; }
+
+	void	StartTimer()	{ m_lTStartTimer = millis(); m_lTTimerInterval = 0; m_isTimerStart = TRUE;}
+	void	StopTimer()		{ m_isTimerStart = FALSE; m_lTTimerInterval = millis() - m_lTStartTimer; }
+	DWORD	GetTimer()		{ if (m_isTimerStart == TRUE) m_lTTimerInterval = millis() - m_lTStartTimer;
+		return 	m_lTTimerInterval;
+	}
 };
 
 
