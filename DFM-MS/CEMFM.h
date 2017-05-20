@@ -48,7 +48,7 @@ protected:
 	
 	bool	m_isTimerStart = FALSE;		// Flag: 1 - timer is start, 0 - timer is stop.
 	DWORD	m_lTStartTimer;				// Time in ms of starting timer
-	DWORD	m_lTTimerInterval;			// Interval (ms) for timer
+	DWORD	m_lTTimerInterval = 0;		// Interval (ms) for timer
 	
 public:
 	// Constructor, destructor

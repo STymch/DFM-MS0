@@ -291,8 +291,14 @@ void ISR_InputPulse2()
 		// Save new counter in data packet
 		pDataMS->SetCountCurr(pEMFM->GetCountCurr());
 
+		// Read Timer
+		pDataMS->SetTimeInt(pEMFM->GetTimer());
+
 		// If current counter == 0 - set flag of measuring OFF
-		if (pEMFM->GetCountCurr() == 0) isMeasuring = false;
+		if (pEMFM->GetCountCurr() == 0) {
+			isMeasuring = false;
+			pEMFM->StopTimer();		// stop Timer
+		}
 	}
 
 	// Calculate current flow Q
@@ -317,6 +323,7 @@ void BTSerialReadCmnd()
 				{
 					dwCountCurr = DWORD(-1);// set -1 for current counter
 					isMeasuring = false;	// set flag of measuring OFF
+					pEMFM->StopTimer();		// stop Timer
 				}
 				// Save current pulse count
 				pEMFM->SetCountCurr(dwCountCurr);
@@ -324,6 +331,8 @@ void BTSerialReadCmnd()
 				pDataMS->SetCountCurr(dwCountCurr);
 				// Set flag of measuring ON
 				isMeasuring = true;
+				// Start Timer
+				pEMFM->StartTimer();
 				break;
 
 			case cmndPowerOff:			// Turn off power
