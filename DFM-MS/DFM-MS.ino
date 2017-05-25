@@ -89,11 +89,11 @@ DWORD	dwTimerTick = 0;
 CSerialPort		*pBTSerialPort;	// For bluetooth modem 
 				
 // Data structure of data of DFM-MS
-CDataMS	*volatile pDataMS;
-CCmndMS *pCmndMS;
+CDataMS	*pDataMS;
+CCmndMS	*pCmndMS;
 
 // EMFM/Generator
-CEMFM *pEMFM;
+CEMFM	*pEMFM;
 
 // Air compensated humidity and temperature sensor
 CRHTSensor	*pRHTSensor;
@@ -131,8 +131,8 @@ void setup()
 	pCmndMS = new CCmndMS;
 
 	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
-	isAntiTinklingOn = false;
-	if (isAntiTinklingOn) {	// antitinkling is ON
+	
+	if (isAntiTinklingOn == true) {	// antitinkling is ON
 		nEXT_INT_MODE = CHANGE;
 		pISR = ISR_InputPulse1;
 	}
@@ -149,6 +149,14 @@ void setup()
 	pTemperatureSensor = new CTemperatureSensor();
 	pTemperatureSensor->Init();
 
+	// Fill initial data packet
+	pDataMS->SetStatus(bStatus);
+	pDataMS->SetTemprWater(fTWater);
+	pDataMS->SetTemprAir(fTAir);
+	pDataMS->SetRHumidityAir(fRHumidityAir);
+	pDataMS->SetPowerU(nU);
+
+
 	// Set Timer2 period milliseconds
 //	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
 	// Enable Timer2 interrupt
@@ -160,21 +168,22 @@ void setup()
 ///////////////////////////////////////////////////////////////
 void loop()
 {
+	
 	// Read command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
-	
+
+	// Read and execute command from serial port
+	::SerialUI();
+
 	// Write data into BT COM port
 	noInterrupts();
 	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 	interrupts();
-	
-	// Read and execute command from serial port
-	::SerialUI();
-	
-	// Calculate current flow Q
-	//pDataMS->SetQ(pEMFM->Calculate	Q());
 
-	// Change data
+	// Calculate current flow Q
+	pDataMS->SetQ(pEMFM->CalculateQ());
+
+/*	// Change data
 	if (lCount % 100 == 0) bStatus = ~bStatus;
 	fTAir += 0.01;
 	fTWater += 0.01;
@@ -187,8 +196,10 @@ void loop()
 	pDataMS->SetTemprAir(fTAir);
 	pDataMS->SetRHumidityAir(fRHumidityAir);
 	pDataMS->SetPowerU(nU);
-	pDataMS->SetTimeInt(lTimeInt);
+//	pDataMS->SetTimeInt(lTimeInt);
 	
+*/
+
 	// Test print
 	if (lCount % 10 == 0 && isSerialPrn)
 		//	if (dwTimerTick % 10 == 0 && isSerialPrn)
@@ -196,8 +207,8 @@ void loop()
 		// Print number of loop
 		Serial.println();		Serial.print(""); Serial.print(lCount);
 		//		Serial.print("\tTT=");	Serial.print(dwTimerTick);
-		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull());
-		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr());
+		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
+		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
 		//		Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
 		Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
@@ -221,7 +232,7 @@ void loop()
 ///////////////////////////////////////////////////////////////
 // Timer2 ISR callback function
 ///////////////////////////////////////////////////////////////
-void ISR_Timer2() {
+/*void ISR_Timer2() {
 	static	bool	led_out = HIGH;
 	
 	// Calculate current flow Q
@@ -234,7 +245,7 @@ void ISR_Timer2() {
 	digitalWrite(LED_PIN, led_out);
 	led_out = !led_out;
 }
-
+*/
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function, antitinkling is on
 ///////////////////////////////////////////////////////////////
@@ -260,8 +271,14 @@ void ISR_InputPulse1()
 				// Save new counter in data packet
 				pDataMS->SetCountCurr(pEMFM->GetCountCurr());
 				
-				// If current counter == 0 - set flag of measuring OFF
-				if (pEMFM->GetCountCurr() == 0)	isMeasuring = false;
+				// Read Timer and save it in data packet
+				pDataMS->SetTimeInt(pEMFM->GetTimer());
+				
+				// If current counter == 0
+				if (pEMFM->GetCountCurr() == 0) {
+					isMeasuring = false;	// set flag of measuring OFF
+					pEMFM->StopTimer();		// stop Timer
+				}
 			}
 		}
 		else	// incorrect pulse, counting!
@@ -291,18 +308,18 @@ void ISR_InputPulse2()
 		// Save new counter in data packet
 		pDataMS->SetCountCurr(pEMFM->GetCountCurr());
 
-		// Read Timer
+		// Read Timer and save it in data packet
 		pDataMS->SetTimeInt(pEMFM->GetTimer());
 
-		// If current counter == 0 - set flag of measuring OFF
+		// If current counter == 0
 		if (pEMFM->GetCountCurr() == 0) {
-			isMeasuring = false;
+			isMeasuring = false;	// set flag of measuring OFF
 			pEMFM->StopTimer();		// stop Timer
 		}
 	}
 
 	// Calculate current flow Q
-	pDataMS->SetQ(pEMFM->CalculateQ());
+//	pDataMS->SetQ(pEMFM->CalculateQ());
 }
 
 ///////////////////////////////////////////////////////////////
@@ -311,10 +328,16 @@ void ISR_InputPulse2()
 void BTSerialReadCmnd()
 {
 	DWORD	dwCountCurr;
+	int		nErrCode;
 
 	// Read command from FMVI-CP
-	if (pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1) > 0) {
+	//Serial.println();	Serial.print("Read:");
+	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
 		// Analize input command
+		Serial.println();
+		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
+		Serial.print("\tArg=");			Serial.print(pCmndMS->GetArg_dw());
+
 		switch (pCmndMS->GetCode()) 
 		{
 			case cmndSetCount:			// Set current pulse count 
@@ -325,14 +348,19 @@ void BTSerialReadCmnd()
 					isMeasuring = false;	// set flag of measuring OFF
 					pEMFM->StopTimer();		// stop Timer
 				}
+				else
+				{
+					isMeasuring = true;		// set flag of measuring ON
+					pEMFM->StartTimer();	// start timer
+				}
+
 				// Save current pulse count
+				noInterrupts();
 				pEMFM->SetCountCurr(dwCountCurr);
 				// Save current pulse count into data packet
 				pDataMS->SetCountCurr(dwCountCurr);
-				// Set flag of measuring ON
-				isMeasuring = true;
-				// Start Timer
-				pEMFM->StartTimer();
+				interrupts();
+				
 				break;
 
 			case cmndPowerOff:			// Turn off power
@@ -348,6 +376,9 @@ void BTSerialReadCmnd()
 				break;
 		}
 
+	}
+	else if (nErrCode != -1) {
+		Serial.print(" Err=");	Serial.print(nErrCode);
 	}
 }
 

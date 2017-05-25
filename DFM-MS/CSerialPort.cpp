@@ -78,7 +78,12 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 	INT		retcode = -1;	// Return code - no bytes available in port
 
 	// If available - read first byte = size of data
-	if ((len = Read()) >= nMaxBuffLen)	retcode = -3;	// Data size is big
+	len = Read();
+	if (len >= nMaxBuffLen || len == 0) {
+		retcode = -3;	// Data size is wrong
+		Serial.println(); Serial.print("Read: Wrong len="); Serial.print(len); Serial.print("\tBytes=");
+		while ((b = Read()) >= 0) { Serial.print("0x"); Serial.print(b, HEX); Serial.print(" "); }
+	}
 	else 
 		if (len > 0) {
 			pBuffer[i++] = (BYTE)len;				// Save first byte = size of data into output array
@@ -91,7 +96,15 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 			} while ((i < len + 1) && (millis() <= dwTime));
 
 			if (i == len + 1)	retcode = len + 1;	// Read all bytes successfully
-			else	retcode = -2;					// Timeout when read byte - not all bytes read
+			else {
+				retcode = -2;					// Timeout when read byte - not all bytes read
+				Serial.println(); Serial.print("Read: Wrong Data, len="); Serial.print(len); 
+				Serial.print("\tBytes="); 
+				for(int j = 1; j < i; ++j )
+				{
+					Serial.print("0x"); Serial.print(pBuffer[j], HEX); Serial.print(" ");
+				}
+			}
 		}
 	
 	return retcode;

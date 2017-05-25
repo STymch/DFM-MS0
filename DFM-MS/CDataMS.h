@@ -30,10 +30,10 @@ protected:
 			FLOAT	m_fRHumidityAir;		// Compensated Humidity, %							4
 			FLOAT	m_fTemprWater;			// Температура воды, C								4
 			UINT	m_nPowerU;				// Уровень зарда АКБ								2
-			FLOAT	m_fQ;					// Мгновенный поток имп/сек							4
-			DWORD	m_dwTimeInt;			// Интервал времени, миллисекунды					4
-			DWORD	m_dwCountFull;			// Общий счетчик импульсов							4
-			DWORD	m_dwCountCurr;			// Счетчик импульсов для заданного пролива			4	
+			volatile FLOAT	m_fQ;			// Мгновенный поток имп/сек							4
+			volatile DWORD	m_dwTimeInt;	// Интервал времени, миллисекунды					4
+			volatile DWORD	m_dwCountFull;	// Общий счетчик импульсов							4
+			volatile DWORD	m_dwCountCurr;	// Счетчик импульсов для заданного пролива			4	
 		};
 	};
 public:
