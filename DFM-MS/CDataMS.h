@@ -25,7 +25,21 @@ protected:
 		struct								// Structure of data
 		{
 			BYTE	m_bLen;					// Длина пакета информации = DATA_LEN				1
-			BYTE	m_bStatus;				// Биты состояни элементов измерительной системы	1
+			union
+			{
+				BYTE	m_bStatus;			// Биты состояни элементов измерительной системы	1
+				struct
+				{
+					int	m_btReceiveDataError	: 1;// 0 - not used
+					int	m_btTempSensorError		: 1;// 1 - temperature sensor alarm
+					int m_btEMFM_FQH			: 1;// 2 - flow high limit alarm
+					int m_btEMFM_FQL			: 1;// 3 - flow low limit alarm
+					int	m_btLowBatteryPower		: 1;// 4 - not used
+					int	m_btRHTSensorError		: 1;// 5 - RHT sensor alarm
+					int m_btEndBatteryRHTSensor	: 1;// 6 - end of battery RHT Sensor: VDD < 2.25V
+					int m_btReserv				: 1;// 7 - not used
+				};
+			};
 			FLOAT	m_fTemprAir;			// Температура воздуха, C							4
 			FLOAT	m_fRHumidityAir;		// Compensated Humidity, %							4
 			FLOAT	m_fTemprWater;			// Температура воды, C								4
@@ -59,7 +73,6 @@ public:
 	void	SetDataMS(BYTE b)			{ for (int i = 1; i <= m_bLen; m_pDataMS[i++] = b);			}
 	void	SetDataMS(BYTE *pBuff)		{ for (int i = 1; i <= m_bLen; m_pDataMS[i++] = (*pBuff)++);}
 	void	SetLen(BYTE bLen)			{ m_bLen = bLen;		}
-	void	SetStatus(BYTE bStatus)		{ m_bStatus = bStatus;	}
 	void	SetTemprAir(FLOAT fT)		{ m_fTemprAir = fT;		}
 	void	SetRHumidityAir(FLOAT fRH)	{ m_fRHumidityAir = fRH;}
 	void	SetTemprWater(FLOAT fT)		{ m_fTemprWater = fT;	}
@@ -68,6 +81,15 @@ public:
 	void	SetTimeInt(DWORD dwTime)	{ m_dwTimeInt = dwTime; }
 	void	SetCountFull(DWORD dwC)		{ m_dwCountFull = dwC;	}
 	void	SetCountCurr(DWORD dwC)		{ m_dwCountCurr = dwC;	}
+
+	// Set status bits
+	void	SetStatus(BYTE bStatus)			{ m_bStatus = bStatus;				}
+	void	SetTempSensorError(int bit)		{ m_btTempSensorError = bit;		}
+	void	SetEMFM_FQH(int bit)			{ m_btEMFM_FQH = bit;				}
+	void	SetEMFM_FQL(int bit)			{ m_btEMFM_FQL = bit;				}
+	void	SetRHTSensorError(int bit)		{ m_btRHTSensorError = bit;			}
+	void	SetEndBatteryRHTSensor(int bit) { m_btEndBatteryRHTSensor = bit;	}
+
 
 };
 

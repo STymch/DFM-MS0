@@ -4,75 +4,44 @@
 
 #include "CRHTSensor.h"
 
-void CRHTSensor::Init()
+// Detect RHT sensor
+// Return:	0 - sensor OK, 
+//			-1 - no sensor,
+//			1 - Battery LOW, Level < 2.25v
+int CRHTSensor::Detect()
 {
-/*	HTU21D myHTU21D;
-
-	// Setup
-	Serial.begin(38400);
-	Serial.println(F(""));
+	int		retcode = -1;
 
 #if defined(ARDUINO_ARCH_ESP8266) || (ESP8266_NODEMCU)
-	while (myHTU21D.begin(D1, D2) != true)
+	if (m_pHTU21D->begin(D1, D2) == true)
 #else
-	while (myHTU21D.begin() != true)
+	if (m_pHTU21D->begin() == true)
 #endif
-	{
-		Serial.println(F("HTU21D, SHT21 or Si70xx sensor is not present..."));
-		delay(5000);
-	}
-
-	Serial.println(F("HTU21D, SHT21 or Si70xx sensor is present"));
+		retcode = 0;
 	
+	// Check Battery Status
+	if (m_pHTU21D->batteryStatus() != true)
+		retcode = 1;	// Battery LOW, Level < 2.25v
+
+	// Fimware version
+	m_nFirmwareVersion = m_pHTU21D->readFirmwareVersion();
+	// Sensor's name
+	m_nSensorID = m_pHTU21D->readDeviceID();
+
+	return retcode;
+}
+
+// Get RH and temperature from sensor
+void CRHTSensor::GetRHT(float &fHumidity, float &fTemperature)
+{
+	// Set resolution
+	m_pHTU21D->setResolution(HTU21D_RES_RH11_TEMP11);
 	
-	// Loop
+	// Read Compensated Humidity
+	fHumidity = m_pHTU21D->readCompensatedHumidity();
 	
-	Serial.println(F("..."));
-	Serial.println(F("<< RHTSensor DEMO: %RH - 12Bit, Temperature - 14Bit (default settings) >>"));
-	Serial.print(F("Humidity: "));
-	Serial.print(myHTU21D.readHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" +-0.5deg.C"));
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: %RH - 11Bit, Temperature - 11Bit >>"));
-	myHTU21D.setResolution(HTU21D_RES_RH11_TEMP11);
-	Serial.print(F("Humidity: "));
-	Serial.print(myHTU21D.readHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" +-0.5deg.C"));
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Battery Status >>"));
-	if (myHTU21D.batteryStatus() == true)
-	{
-		Serial.println(F("Battery OK. Level > 2.25v"));
-	}
-	else
-	{
-		Serial.println(F("Battery LOW. Level < 2.25v"));
-	}
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Fimware version >>"));
-	Serial.print(F("FW version: "));
-	Serial.println(myHTU21D.readFirmwareVersion());
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Device ID >>"));
-	Serial.print(F("Sensor's name: "));
-	Serial.println(myHTU21D.readDeviceID());
-	*/
+	// Read Temperature
+	fTemperature= m_pHTU21D->readTemperature();
 }
 
 

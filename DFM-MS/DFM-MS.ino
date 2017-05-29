@@ -58,7 +58,8 @@ const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, milli
 
 // Time parameters
 const DWORD	DELAY_LOOP_MS = 100;		// Delay for main loop, millises
-const DWORD	FREQ_TIMER2_MS = 100;		// Timer2 period in milliseconds
+const DWORD	DELAY_TEMP_SENSOR = 1000;	// Delay for measuring temperature
+//const DWORD	FREQ_TIMER2_MS = 100;	// Timer2 period in milliseconds
 
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
@@ -105,8 +106,8 @@ CTemperatureSensor	*pTemperatureSensor;
 OneWire DSTempSensor(TEMP_PIN);
 
 byte	bStatus = 0;
-FLOAT	fTAir = 15.2, fRHumidityAir = 45.4, fTWater = 0.5, fQ = 0.01;
-DWORD	lTimeInt = 25000L;
+FLOAT	fTAir, fRHumidityAir, fTWater, fQ = 0.0;
+DWORD	lTimeInt;
 UINT	nU = 749;
 
 ///////////////////////////////////////////////////////////////
@@ -115,8 +116,7 @@ UINT	nU = 749;
 void setup() 
 {
 	int		rc;
-	float	fTWater;
-
+	
 	// Set the data rate and open hardware COM port:
 	Serial.begin(DR_HARDWARE_COM);
 	while (!Serial);
@@ -131,6 +131,8 @@ void setup()
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
 	pDataMS = new CDataMS;
+	pDataMS->SetStatus(0);
+
 	pCmndMS = new CCmndMS;
 
 	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
@@ -147,33 +149,40 @@ void setup()
 
 
 	pRHTSensor = new CRHTSensor();
-	//pRHTSensor->Init();
+	if (rc = pRHTSensor->Detect())
+	{
+		Serial.println();	Serial.print("--== RHT Sensor (HTU21D, SHT21 or Si70xx) Error="); Serial.print(rc);
+		pDataMS->SetRHTSensorError(1);	// set status bit
+		fTAir = -1;						// temperature = -1
+		fRHumidityAir = -1;				// humidity
+	}
+	else
+	{
+		Serial.println();	Serial.print("--== RHT Sensor (HTU21D, SHT21 or Si70xx) OK!");
+		pDataMS->SetRHTSensorError(0);	// set status bit
+		pRHTSensor->GetRHT(fRHumidityAir,fTAir);	// Get RH and temperature from sensor
+	}
+	pDataMS->SetTemprAir(fTAir);
+	pDataMS->SetRHumidityAir(fRHumidityAir);
 
-	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN);
+
+	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, DELAY_TEMP_SENSOR);
 	if (rc = pTemperatureSensor->Detect()) 
 	{
 		Serial.println();		Serial.print("--== Temperature Sensor Error="); Serial.print(rc);
-		// Set flag in pDataMS->SetStatus(bStatus);
-		fTWater = -1;
+		pDataMS->SetTempSensorError(1);	// set status bit
+		fTWater = -1;					// temperature = -1
 	}
-	else {
+	else 
+	{
 		Serial.println();		Serial.print("--== Temperature Sensor OK!");
-		// Set flag in pDataMS->SetStatus(bStatus);
+		pDataMS->SetTempSensorError(0);	// set status bit
 		fTWater = pTemperatureSensor->GetTemperature();		
 	}
-	
-	// Fill initial data packet
-	pDataMS->SetStatus(bStatus);
 	pDataMS->SetTemprWater(fTWater);
-	pDataMS->SetTemprAir(fTAir);
-	pDataMS->SetRHumidityAir(fRHumidityAir);
+	
+
 	pDataMS->SetPowerU(nU);
-
-
-	// Set Timer2 period milliseconds
-//	MsTimer2::set(FREQ_TIMER2_MS, ISR_Timer2);
-	// Enable Timer2 interrupt
-//	MsTimer2::start();
 }
 
 ///////////////////////////////////////////////////////////////
@@ -242,23 +251,6 @@ void loop()
 	delay(DELAY_LOOP_MS);
 }
 
-///////////////////////////////////////////////////////////////
-// Timer2 ISR callback function
-///////////////////////////////////////////////////////////////
-/*void ISR_Timer2() {
-	static	bool	led_out = HIGH;
-	
-	// Calculate current flow Q
-//	pDataMS->SetQ(pEMFM->CalculateQ());
-
-	// Increment timer's ticks
-	dwTimerTick++;
-
-	// Switch on/off LED
-	digitalWrite(LED_PIN, led_out);
-	led_out = !led_out;
-}
-*/
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function, antitinkling is on
 ///////////////////////////////////////////////////////////////
@@ -349,7 +341,7 @@ void BTSerialReadCmnd()
 		// Analize input command
 		Serial.println();
 		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
-		Serial.print("\tArg=");			Serial.print(pCmndMS->GetArg_dw());
+		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
 
 		switch (pCmndMS->GetCode()) 
 		{
@@ -374,19 +366,36 @@ void BTSerialReadCmnd()
 				pDataMS->SetCountCurr(dwCountCurr);
 				interrupts();
 				
+				Serial.print("\tPASSED");
+				
+				break;
+
+			case cmndReadTemprWater:		// Read water temperature from sensor
+				if (!isMeasuring) {
+					// Read temperature and save in data packet
+					pDataMS->SetTemprWater(pTemperatureSensor->GetTemperature());
+					Serial.print("\tPASSED");
+				}
+				else Serial.print("\tSKIP");
+
+				break;
+
+			case cmndReadRHT:		// Read humidity and temperature from RHT sensor
+				if (!isMeasuring) {
+					// Read humidity and temperature from RHT sensor and save in data packet
+					pRHTSensor->GetRHT(fRHumidityAir, fTAir);	// Get RH and temperature from sensor
+					pDataMS->SetTemprAir(fTAir);
+					pDataMS->SetRHumidityAir(fRHumidityAir);
+					Serial.print("\tPASSED");
+				}
+				else Serial.print("\tSKIP");
+
 				break;
 
 			case cmndPowerOff:			// Turn off power
 
 				break;
-		
-		
-			case cmndReadTemprWater:			// Read water temperature from sensor
-				if (!isMeasuring) {
-					// Read
-				}
 
-				break;
 		}
 
 	}
