@@ -42,7 +42,7 @@ const int   POWER_ON_PIN = 0;			// Power analog input pin
 // Arduino digital GPIO
 const int   EMFM_PIN = 3;				// EMFM digital out input pin
 const int   TEST_PIN = 2;				// Test digital generator out input pin
-const int   TEMP_PIN = 4;				// Temperature sensor DS18B20 DQ out input pin
+const int   TEMP_PIN = 5;				// Temperature sensor DS18B20 DQ out input pin
 const int   ALM_FQH_PIN = 5;			// EEMFM FQH ALARM out input pin
 const int   ALM_FQL_PIN = 6;			// EEMFM FQL ALARM out input pin
 const int   POWER_OFF_PIN = 7;			// Power off output pin
@@ -114,6 +114,9 @@ UINT	nU = 749;
 ///////////////////////////////////////////////////////////////
 void setup() 
 {
+	int		rc;
+	float	fTWater;
+
 	// Set the data rate and open hardware COM port:
 	Serial.begin(DR_HARDWARE_COM);
 	while (!Serial);
@@ -146,9 +149,19 @@ void setup()
 	pRHTSensor = new CRHTSensor();
 	//pRHTSensor->Init();
 
-	pTemperatureSensor = new CTemperatureSensor();
-	pTemperatureSensor->Init();
-
+	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN);
+	if (rc = pTemperatureSensor->Detect()) 
+	{
+		Serial.println();		Serial.print("--== Temperature Sensor Error="); Serial.print(rc);
+		// Set flag in pDataMS->SetStatus(bStatus);
+		fTWater = -1;
+	}
+	else {
+		Serial.println();		Serial.print("--== Temperature Sensor OK!");
+		// Set flag in pDataMS->SetStatus(bStatus);
+		fTWater = pTemperatureSensor->GetTemperature();		
+	}
+	
 	// Fill initial data packet
 	pDataMS->SetStatus(bStatus);
 	pDataMS->SetTemprWater(fTWater);
@@ -169,13 +182,13 @@ void setup()
 void loop()
 {
 	
-	// Read command from DFM-CP BT serial port
+	// Read and execute command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
 
-	// Read and execute command from serial port
+	// Read and execute command from serial port console
 	::SerialUI();
 
-	// Write data into BT COM port
+	// Write data into BT serial port
 	noInterrupts();
 	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 	interrupts();
@@ -200,7 +213,7 @@ void loop()
 	
 */
 
-	// Test print
+	// Debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
 		//	if (dwTimerTick % 10 == 0 && isSerialPrn)
 	{
