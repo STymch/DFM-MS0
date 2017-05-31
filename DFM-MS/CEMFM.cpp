@@ -48,7 +48,7 @@ FLOAT	CEMFM::CalculateQ()
 		lTInterval = millis() - m_lTStartQ;
 		// Check full time interval for calculation Q 
 		if (lTInterval >= m_lTInterval4Q)		// calculate Q
-		{	m_fQm3h = 3600.0F * (m_dwCountFull - m_dwCountStartQ + 1) / (m_nPulseOnLtr * lTInterval);
+		{	m_fQm3h = 3600.0F * (m_dwCountFull - m_dwCountStartQ) / (m_nPulseOnLtr * lTInterval);
 			m_isQCalculate = !m_isQCalculate;	// reset flag Q calculated
 		}
 	}

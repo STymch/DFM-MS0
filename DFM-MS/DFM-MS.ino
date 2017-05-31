@@ -17,7 +17,6 @@
 //  - functions:
 //		setup()				-	Initialisation FMVI-MS
 //		loop()				-	Working loop of FMVI-MS
-//		ISR_Timer2()		-	Timer2 ISR callback function
 //		ISR_InputPulse1()	-	External interrupt ISR callback function, antitinkling ON
 //		ISR_InputPulse2()	-	External interrupt ISR callback function, antitinkling OFF
 //		BTSerialReadCmnd()	-	Read command from FMVI-CP by BT Serial Port
@@ -26,8 +25,6 @@
 
 #include "CommDef.h"
 //#include <EEPROM.h>		
-//#include <OneWire.h>
-//#include <MsTimer2.h>
 
 #include "CSerialPort.h"
 #include "CDataMS.h"
@@ -37,19 +34,18 @@
 
 // Global parameters
 // Arduino analog GPIO
-const int   POWER_ON_PIN = 0;			// Power analog input pin
+const int   POWER_ON_PIN	= 0;		// Power analog input pin
 
 // Arduino digital GPIO
-const int   EMFM_PIN = 3;				// EMFM digital out input pin
-const int   TEST_PIN = 2;				// Test digital generator out input pin
-const int   TEMP_PIN = 5;				// Temperature sensor DS18B20 DQ out input pin
-const int   ALM_FQH_PIN = 5;			// EEMFM FQH ALARM out input pin
-const int   ALM_FQL_PIN = 6;			// EEMFM FQL ALARM out input pin
-const int   POWER_OFF_PIN = 7;			// Power off output pin
+const int   EMFM_PIN		= 3;		// EMFM digital out input pin
+const int   POWER_OFF_PIN	= 4;		// Power off output pin
+const int   TEMP_PIN		= 5;		// Temperature sensor DS18B20 DQ out input pin
+const int   ALM_FQH_PIN		= 6;		// EEMFM FQH ALARM out input pin
+const int   ALM_FQL_PIN		= 7;		// EEMFM FQL ALARM out input pin
 
-const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-05 
-const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
-const int   LED_PIN = 13;				// LED output pin
+const int	RX_PIN			= 10;		// Software UART RX pin, connect to TX of Bluetooth HC-05 
+const int	TX_PIN			= 11;		// Software UART TX pin, connect to RX of Bluetooth HC-05
+const int   LED_PIN			= 13;		// LED output pin
 
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
@@ -59,7 +55,6 @@ const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, milli
 // Time parameters
 const DWORD	DELAY_LOOP_MS = 100;		// Delay for main loop, millises
 const DWORD	DELAY_TEMP_SENSOR = 1000;	// Delay for measuring temperature
-//const DWORD	FREQ_TIMER2_MS = 100;	// Timer2 period in milliseconds
 
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
@@ -69,9 +64,10 @@ DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < wi
 int		nPulseWidth = 1;				// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
 int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-DWORD	lTInterval4Q = 500;				// Interval (ms) for calculate current flow Q
-int		nEXT_INT_MODE = CHANGE;			// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
-void(*pISR)();							// Pointer to external interrupt ISR function 
+DWORD	lTInterval4Q = 200;				// Interval (ms) for calculate current flow Q
+DWORD	lTInterval4Qm = 5000;			// Interval (ms) for calculate middle flow Qm
+int		nEXT_INT_MODE;					// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
+void	(*pISR)();						// Pointer to external interrupt ISR function 
 
 bool	isMeasuring = false;			// Measuring state flag: true - measuring ON, false - measuring OFF
 bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
@@ -111,7 +107,7 @@ DWORD	lTimeInt;
 UINT	nU = 749;
 
 ///////////////////////////////////////////////////////////////
-// Initialisation FMVI-MS
+// Initialisation DFM-MS
 ///////////////////////////////////////////////////////////////
 void setup() 
 {
@@ -124,19 +120,21 @@ void setup()
 	// Set pin mode for LED pin
 	pinMode(LED_PIN, OUTPUT);
 
-	// Create objects of FMVI-MS:
+	// Create objects of DFM-MS:
+	// Bluetooth serial port
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
-
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
+	// Data packet object
 	pDataMS = new CDataMS;
 	pDataMS->SetStatus(0);
 
+	// Commands object
 	pCmndMS = new CCmndMS;
 
-	pEMFM = new CEMFM(TEST_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
-	
+	// Flowmeter
+	pEMFM = new CEMFM(EMFM_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
 	if (isAntiTinklingOn == true) {	// antitinkling is ON
 		nEXT_INT_MODE = CHANGE;
 		pISR = ISR_InputPulse1;
@@ -147,42 +145,46 @@ void setup()
 	}
 	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
-
+	// Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
 	if (rc = pRHTSensor->Detect())
 	{
-		Serial.println();	Serial.print("--== RHT Sensor (HTU21D, SHT21 or Si70xx) Error="); Serial.print(rc);
+		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error="); Serial.print(rc);
 		pDataMS->SetRHTSensorError(1);	// set status bit
 		fTAir = -1;						// temperature = -1
-		fRHumidityAir = -1;				// humidity
+		fRHumidityAir = -1;				// humidity = -1
 	}
 	else
 	{
-		Serial.println();	Serial.print("--== RHT Sensor (HTU21D, SHT21 or Si70xx) OK!");
-		pDataMS->SetRHTSensorError(0);	// set status bit
-		pRHTSensor->GetRHT(fRHumidityAir,fTAir);	// Get RH and temperature from sensor
+		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) OK!");
+		pDataMS->SetRHTSensorError(0);				// set status bit
+		pRHTSensor->GetRHT(fRHumidityAir,fTAir);	// get RH and temperature from sensor
 	}
 	pDataMS->SetTemprAir(fTAir);
 	pDataMS->SetRHumidityAir(fRHumidityAir);
 
-
+	// Temperature of water sensor
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, DELAY_TEMP_SENSOR);
 	if (rc = pTemperatureSensor->Detect()) 
 	{
-		Serial.println();		Serial.print("--== Temperature Sensor Error="); Serial.print(rc);
+		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor Error="); Serial.print(rc);
 		pDataMS->SetTempSensorError(1);	// set status bit
 		fTWater = -1;					// temperature = -1
 	}
 	else 
 	{
-		Serial.println();		Serial.print("--== Temperature Sensor OK!");
-		pDataMS->SetTempSensorError(0);	// set status bit
-		fTWater = pTemperatureSensor->GetTemperature();		
+		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor OK!");
+		pDataMS->SetTempSensorError(0);					// set status bit
+		fTWater = pTemperatureSensor->GetTemperature();	// get water temperature		
 	}
 	pDataMS->SetTemprWater(fTWater);
 	
-
+	// Set initial U battery
 	pDataMS->SetPowerU(nU);
+
+	// Delay before starting main loop
+	Serial.println();	Serial.print("--==-- DFM-MS: Starting main loop!");
+	delay(5000);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -205,23 +207,6 @@ void loop()
 	// Calculate current flow Q
 	pDataMS->SetQ(pEMFM->CalculateQ());
 
-/*	// Change data
-	if (lCount % 100 == 0) bStatus = ~bStatus;
-	fTAir += 0.01;
-	fTWater += 0.01;
-	fRHumidityAir += 0.01;
-	if (lCount % 200 == 0) nU--;
-
-	// Fill data
-	pDataMS->SetStatus(bStatus);
-	pDataMS->SetTemprWater(fTWater);
-	pDataMS->SetTemprAir(fTAir);
-	pDataMS->SetRHumidityAir(fRHumidityAir);
-	pDataMS->SetPowerU(nU);
-//	pDataMS->SetTimeInt(lTimeInt);
-	
-*/
-
 	// Debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
 		//	if (dwTimerTick % 10 == 0 && isSerialPrn)
@@ -231,11 +216,11 @@ void loop()
 		//		Serial.print("\tTT=");	Serial.print(dwTimerTick);
 		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
 		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
-		//		Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
+		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
-		Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
-		Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
-		Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
+		//Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
+		//Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
+		//Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
 		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
 		//		isSerialPrn = !isSerialPrn;
 	}
@@ -291,9 +276,6 @@ void ISR_InputPulse1()
 			dwCountBadPulse++;
 		}
 	}
-
-	// Calculate current flow Q
-	pDataMS->SetQ(pEMFM->CalculateQ());
 }
 ///////////////////////////////////////////////////////////////
 // External interrupt ISR callback function, antitinkling is off
@@ -322,9 +304,6 @@ void ISR_InputPulse2()
 			pEMFM->StopTimer();		// stop Timer
 		}
 	}
-
-	// Calculate current flow Q
-//	pDataMS->SetQ(pEMFM->CalculateQ());
 }
 
 ///////////////////////////////////////////////////////////////
