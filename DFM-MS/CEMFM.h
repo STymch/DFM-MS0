@@ -11,7 +11,7 @@
 
 #include "CommDef.h"
 
-const int   MA_NVAL = 3;		// Number of point for calculate moving average of Q
+const int   MA_NVAL = 6;		// Number of point for calculate moving average of Q
 
 ///////////////////////////////////////////////////////
 // <<< CEMFM - class for EMFM QTLD-15 / Generator
@@ -74,7 +74,7 @@ public:
 		m_nALM_FQHWidth = nALM_FQHWidth;
 		m_nALM_FQLWidth = nALM_FQLWidth;	
 
-		for (int i = 0; i < MA_NVAL; m_pfQ[i++] = 0);
+		for (int i = 0; i < MA_NVAL; m_pfQ[i++] = 0.0);
 		
 	}
 	~CEMFM() { }

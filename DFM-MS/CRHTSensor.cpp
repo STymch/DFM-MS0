@@ -1,7 +1,3 @@
-// 
-// 
-// 
-
 #include "CRHTSensor.h"
 
 // Detect RHT sensor
@@ -32,16 +28,28 @@ int CRHTSensor::Detect()
 }
 
 // Get RH and temperature from sensor
-void CRHTSensor::GetRHT(float &fHumidity, float &fTemperature)
+// Return:	0 - sensor OK, 
+//			1 - sensor error
+int	CRHTSensor::GetRHT(float& fHumidity, float& fTemperature)
 {
-	// Set resolution
-	m_pHTU21D->setResolution(HTU21D_RES_RH11_TEMP11);
+	int rc = 1;
+	fTemperature = fHumidity = -1.0;
 	
-	// Read Compensated Humidity
-	fHumidity = m_pHTU21D->readCompensatedHumidity();
+	// Detect RHT sensor
+	if (!Detect()) {
+		// Set resolution
+		m_pHTU21D->setResolution(HTU21D_RES_RH11_TEMP11);
+
+		// Read Compensated Humidity
+		fHumidity = m_pHTU21D->readCompensatedHumidity();
+
+		// Read Temperature
+		fTemperature = m_pHTU21D->readTemperature();
+
+		rc = 0;
+	}
 	
-	// Read Temperature
-	fTemperature= m_pHTU21D->readTemperature();
+	return rc;
 }
 
 

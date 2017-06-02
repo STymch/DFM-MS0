@@ -73,6 +73,7 @@ bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
 
 byte	pBuff[DATA_LEN+1];
 
+int		nLEDState = LOW;	
 bool	isSerialPrn = true;
 
 int		i, nLen;
@@ -110,14 +111,13 @@ UINT	nU = 749;
 ///////////////////////////////////////////////////////////////
 void setup() 
 {
-	int		rc;
-	
 	// Set the data rate and open hardware COM port:
 	Serial.begin(DR_HARDWARE_COM);
 	while (!Serial);
 	
 	// Set pin mode for LED pin
 	pinMode(LED_PIN, OUTPUT);
+	digitalWrite(LED_PIN, nLEDState);
 
 	// Create objects of DFM-MS:
 	// Bluetooth serial port
@@ -146,35 +146,32 @@ void setup()
 
 	// Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
-	if (rc = pRHTSensor->Detect())
+	// Get RH and temperature from sensor
+	if (pRHTSensor->GetRHT(fRHumidityAir, fTAir))	
 	{
-		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error="); Serial.print(rc);
+		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error!");
 		pDataMS->SetRHTSensorError(1);	// set status bit
-		fTAir = -1;						// temperature = -1
-		fRHumidityAir = -1;				// humidity = -1
 	}
 	else
 	{
 		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) OK!");
 		pDataMS->SetRHTSensorError(0);				// set status bit
-		pRHTSensor->GetRHT(fRHumidityAir,fTAir);	// get RH and temperature from sensor
 	}
 	pDataMS->SetTemprAir(fTAir);
 	pDataMS->SetRHumidityAir(fRHumidityAir);
 
 	// Temperature of water sensor
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, DELAY_TEMP_SENSOR);
-	if (rc = pTemperatureSensor->Detect()) 
+	// Get temperature from sensor
+	if (pTemperatureSensor->GetTemperature(fTWater))
 	{
-		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor Error="); Serial.print(rc);
+		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor Error!");
 		pDataMS->SetTempSensorError(1);	// set status bit
-		fTWater = -1;					// temperature = -1
 	}
 	else 
 	{
 		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor OK!");
-		pDataMS->SetTempSensorError(0);					// set status bit
-		fTWater = pTemperatureSensor->GetTemperature();	// get water temperature		
+		pDataMS->SetTempSensorError(0);	// set status bit
 	}
 	pDataMS->SetTemprWater(fTWater);
 	
@@ -222,24 +219,29 @@ void loop()
 	}
 */
 	// Set moving average of Q into data packet
-//	pDataMS->SetQ(pEMFM->GetQMA());
-	pDataMS->SetQ(pEMFM->GetQCurr());
+	pDataMS->SetQ(pEMFM->GetQMA());
+//	pDataMS->SetQ(pEMFM->GetQCurr());
 
 	// Counter of loops
 	lCount++;
 	
-	// Debug print to serial port console
+	// Blink LED and debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
 	{
-		// Print number of loop
-		Serial.println();		Serial.print(""); Serial.print(lCount);
+		// Blink LED 
+		nLEDState = !nLEDState;
+		digitalWrite(LED_PIN, nLEDState);
+
+		// Print data
+/*		Serial.println();		Serial.print(""); Serial.print(lCount);
 		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
 		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
 		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
 		Serial.print("\tQMA=");	Serial.print(pEMFM->GetQMA(), 3);
 		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
-	}
+*/
+		}
 
 	// Loop time interval
 	lTimeInt = millis() - lTimeBegin;
@@ -330,9 +332,9 @@ void BTSerialReadCmnd()
 	//Serial.println();	Serial.print("Read:");
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
 		// Analize input command
-		Serial.println();
-		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
-		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
+//		Serial.println();
+//		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
+//		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
 
 		switch (pCmndMS->GetCode()) 
 		{
@@ -357,29 +359,30 @@ void BTSerialReadCmnd()
 				pDataMS->SetCountCurr(dwCountCurr);
 				interrupts();
 				
-				Serial.print("\tPASSED");
+//				Serial.print("\tPASSED");
 				
 				break;
 
 			case cmndReadTemprWater:		// Read water temperature from sensor
 				if (!isMeasuring) {
 					// Read temperature and save in data packet
-					pDataMS->SetTemprWater(pTemperatureSensor->GetTemperature());
-					Serial.print("\tPASSED");
+					pDataMS->SetTempSensorError(pTemperatureSensor->GetTemperature(fTWater));
+					pDataMS->SetTemprWater(fTWater);
+//					Serial.print("\tPASSED");				
 				}
-				else Serial.print("\tSKIP");
+//				else Serial.print("\tSKIP");
 
 				break;
 
 			case cmndReadRHT:		// Read humidity and temperature from RHT sensor
 				if (!isMeasuring) {
 					// Read humidity and temperature from RHT sensor and save in data packet
-					pRHTSensor->GetRHT(fRHumidityAir, fTAir);	// Get RH and temperature from sensor
+					pDataMS->SetRHTSensorError(pRHTSensor->GetRHT(fRHumidityAir, fTAir));
 					pDataMS->SetTemprAir(fTAir);
 					pDataMS->SetRHumidityAir(fRHumidityAir);
-					Serial.print("\tPASSED");
+//					Serial.print("\tPASSED");
 				}
-				else Serial.print("\tSKIP");
+//				else Serial.print("\tSKIP");
 
 				break;
 
@@ -391,7 +394,7 @@ void BTSerialReadCmnd()
 
 	}
 	else if (nErrCode != -1) {
-		Serial.print(" Err=");	Serial.print(nErrCode);
+//		Serial.print(" Err=");	Serial.print(nErrCode);
 	}
 }
 

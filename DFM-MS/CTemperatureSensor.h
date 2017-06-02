@@ -36,9 +36,8 @@ public:
 	~CTemperatureSensor() { delete m_pDS; }
 	
 	// Methods
-	int		Detect();							// Detect temperature sensor
-	float	GetTemperature(int nTypeScale = 0);	// Get temperature from sensor: 0 - celsius, 1 - fahrenheit
-
+	int	Detect();							// Detect temperature sensor
+	int	GetTemperature(float& fTemperature);// Get temperature from sensor: 0 - celsius, 1 - fahrenheit
 };
 
 

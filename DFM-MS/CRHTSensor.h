@@ -35,7 +35,7 @@ class CRHTSensor
 	
 	// Methods
 	int		Detect();										// Detect RHT sensor
-	void	GetRHT(float &fHumidity, float &fTemperature);	// Get RH and temperature from sensor
+	int		GetRHT(float &fHumidity, float &fTemperature);	// Get RH and temperature from sensor
 };
 
 

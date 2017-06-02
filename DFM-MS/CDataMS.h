@@ -58,7 +58,6 @@ public:
 	// Get data from object
 	BYTE*	GetDataMS()			{ return m_pDataMS;			}
 	BYTE	GetLen()			{ return m_bLen;			}
-	BYTE	GetStatus()			{ return m_bStatus;			}
 	FLOAT	GetTemprAir()		{ return m_fTemprAir;		}
 	FLOAT	GetRHumidityAir()	{ return m_fRHumidityAir;	}
 	FLOAT	GetTemprWater()		{ return m_fTemprWater;		}
@@ -89,6 +88,14 @@ public:
 	void	SetEMFM_FQL(int bit)			{ m_btEMFM_FQL = bit;				}
 	void	SetRHTSensorError(int bit)		{ m_btRHTSensorError = bit;			}
 	void	SetEndBatteryRHTSensor(int bit) { m_btEndBatteryRHTSensor = bit;	}
+
+	// Get status bits
+	BYTE	GetStatus()				{ return m_bStatus;					}
+	int		GetTempSensorError()	{ return m_btTempSensorError;		}
+	int		GetEMFM_FQH()			{ return m_btEMFM_FQH;				}
+	int		GetEMFM_FQL()			{ return m_btEMFM_FQL;				}
+	int		GetRHTSensorError()		{ return m_btRHTSensorError;		}
+	int		GetEndBatteryRHTSensor(){ return m_btEndBatteryRHTSensor;	}
 
 
 };
