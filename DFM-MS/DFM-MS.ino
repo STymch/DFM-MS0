@@ -55,6 +55,7 @@ const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, milli
 // Time parameters
 const DWORD	DELAY_LOOP_MS = 100;		// Delay for main loop, millises
 const DWORD	DELAY_TEMP_SENSOR = 1000;	// Delay for measuring temperature
+const DWORD	TIME_INT4Q = 500;			// Interval (ms) for calculate current flow Q
 
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
@@ -64,8 +65,6 @@ DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < wi
 int		nPulseWidth = 1;				// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
 int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-DWORD	lTInterval4Q = 200;				// Interval (ms) for calculate current flow Q
-DWORD	lTInterval4Qm = 5000;			// Interval (ms) for calculate middle flow Qm
 int		nEXT_INT_MODE;					// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
 void	(*pISR)();						// Pointer to external interrupt ISR function 
 
@@ -103,7 +102,7 @@ OneWire DSTempSensor(TEMP_PIN);
 
 byte	bStatus = 0;
 FLOAT	fTAir, fRHumidityAir, fTWater, fQ = 0.0;
-DWORD	lTimeInt;
+//DWORD	lTimeInt;
 UINT	nU = 749;
 
 ///////////////////////////////////////////////////////////////
@@ -143,7 +142,7 @@ void setup()
 		nEXT_INT_MODE = FALLING;
 		pISR = ISR_InputPulse2;
 	}
-	pEMFM->Init(0, DWORD(-1), lTInterval4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
+	pEMFM->Init(0, DWORD(-1), TIME_INT4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
 	// Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
@@ -193,6 +192,11 @@ void setup()
 void loop()
 {
 	
+	DWORD lTimeBegin, lTimeInt;
+
+	// Save time of begin of loop
+	lTimeBegin = millis();
+
 	// Read and execute command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
 
@@ -204,36 +208,44 @@ void loop()
 	pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 	interrupts();
 
-	// Calculate current flow Q
-	pDataMS->SetQ(pEMFM->CalculateQ());
+	// Calculate current and moving average of flow Q: method 1
+	noInterrupts();
+	pEMFM->CalculateQ();
+	interrupts();
 
-	// Debug print to serial port console
-	if (lCount % 10 == 0 && isSerialPrn)
-		//	if (dwTimerTick % 10 == 0 && isSerialPrn)
+/*	// Calculate current and moving average of flow Q: method 2
+	if (lCount % (TIME_INT4Q / DELAY_LOOP_MS) == 0)
 	{
-		// Print number of loop
-		Serial.println();		Serial.print(""); Serial.print(lCount);
-		//		Serial.print("\tTT=");	Serial.print(dwTimerTick);
-		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
-		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
-		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
-		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
-		//Serial.print("\tTW=");	Serial.print(pDataMS->GetTemprWater(), 2);
-		//Serial.print("\tTA=");	Serial.print(pDataMS->GetTemprAir(), 2);
-		//Serial.print("\tRH=");	Serial.print(pDataMS->GetRHumidityAir(), 2);
-		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
-		//		isSerialPrn = !isSerialPrn;
+		noInterrupts();
+		pEMFM->CalculateQ(TIME_INT4Q);
+		interrupts();
 	}
-//	else
-		//		if (dwTimerTick % 10 != 0)
-		//		if (lCount % 10 != 0)
-		//			if (!isSerialPrn) isSerialPrn = !isSerialPrn;
+*/
+	// Set moving average of Q into data packet
+//	pDataMS->SetQ(pEMFM->GetQMA());
+	pDataMS->SetQ(pEMFM->GetQCurr());
 
 	// Counter of loops
 	lCount++;
 	
+	// Debug print to serial port console
+	if (lCount % 10 == 0 && isSerialPrn)
+	{
+		// Print number of loop
+		Serial.println();		Serial.print(""); Serial.print(lCount);
+		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
+		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
+		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
+		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
+		Serial.print("\tQMA=");	Serial.print(pEMFM->GetQMA(), 3);
+		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
+	}
+
+	// Loop time interval
+	lTimeInt = millis() - lTimeBegin;
+
 	// Delay for other tasks
-	delay(DELAY_LOOP_MS);
+	delay(DELAY_LOOP_MS - lTimeInt);
 }
 
 ///////////////////////////////////////////////////////////////

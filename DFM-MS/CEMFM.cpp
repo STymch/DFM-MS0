@@ -31,26 +31,58 @@ void CEMFM::Init(
 	attachInterrupt(digitalPinToInterrupt(m_nINP_PULSE_PIN), ISR, m_nEXT_INT_MODE);
 }
 
-// Calculate current flow Q
+// Calculate current and moving average of flow Q
 FLOAT	CEMFM::CalculateQ()
 {
 	DWORD	lTInterval;
 
-	// Is Q calculated - starting new calculatio process:
+	// Starting calculation Q process, at start m_isQCalculate = 1
 	if (m_isQCalculate) {
 		m_lTStartQ = millis();				// save time of begin interval of calculation Q
 		m_dwCountStartQ = m_dwCountFull;	// save initial value of pulse couner
 		m_isQCalculate = !m_isQCalculate;	// reset flag
 	}
-	// Q is not calculated yet
+	// Calculation Q loop
 	else {
 		// Calculate time interval
 		lTInterval = millis() - m_lTStartQ;
 		// Check full time interval for calculation Q 
-		if (lTInterval >= m_lTInterval4Q)		// calculate Q
+		if (lTInterval >= m_lTInterval4Q)		// time expiried,  calculate Q
 		{	m_fQm3h = 3600.0F * (m_dwCountFull - m_dwCountStartQ) / (m_nPulseOnLtr * lTInterval);
-			m_isQCalculate = !m_isQCalculate;	// reset flag Q calculated
+			m_lTStartQ = millis();				// save time of begin interval for new calculation of Q
+			m_dwCountStartQ = m_dwCountFull;	// save value of pulse couner
+		
+			CalculateQMA(m_fQm3h);				// calculate  moving average of flow Q
 		}
 	}
 	return m_fQm3h;
+}
+
+// Calculate current and moving average of flow Q
+FLOAT	CEMFM::CalculateQ(DWORD lTimeInt)
+{
+	// Starting calculation Q process, at start m_isQCalculate = 1
+	if (m_isQCalculate) {
+		m_dwCountStartQ = m_dwCountFull;	// save initial value of pulse couner
+		m_isQCalculate = !m_isQCalculate;	// reset flag
+	}
+	// Calculation Q loop
+	else {
+		m_fQm3h = 3600.0F * (m_dwCountFull - m_dwCountStartQ) / (m_nPulseOnLtr * lTimeInt);
+		m_dwCountStartQ = m_dwCountFull;	// save value of pulse couner
+		CalculateQMA(m_fQm3h);				// calculate  moving average of flow Q
+	}
+	return m_fQm3h;
+}
+
+// Calculate moving average of flow Q
+FLOAT	CEMFM::CalculateQMA(float fQcurr)
+{
+	for (int i = 0; i < MA_NVAL-1; ++i) m_pfQ[i] = m_pfQ[i + 1];
+	m_pfQ[MA_NVAL - 1] = fQcurr;
+
+	m_fQMAm3h = 0;
+	for (int i = 0; i < MA_NVAL; ++i) m_fQMAm3h += m_pfQ[i] / MA_NVAL;
+
+	return m_fQMAm3h;
 }

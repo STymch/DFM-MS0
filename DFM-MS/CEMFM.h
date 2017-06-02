@@ -11,6 +11,8 @@
 
 #include "CommDef.h"
 
+const int   MA_NVAL = 3;		// Number of point for calculate moving average of Q
+
 ///////////////////////////////////////////////////////
 // <<< CEMFM - class for EMFM QTLD-15 / Generator
 ///////////////////////////////////////////////////////
@@ -39,6 +41,8 @@ protected:
 	volatile DWORD	m_dwCountCurr;		// Current counter for input pulses from EMFM/Generator
 	volatile DWORD	m_dwCountStartQ;	// Begin value of pulse couner for calculate current flow Q
 	volatile float	m_fQm3h = 0;		// Current flow m3/h
+	volatile float	m_fQMAm3h = 0;		// Moving average of flow m3/h
+	float			m_pfQ[MA_NVAL];		// Array for save current Q for calculate moving average of Q
 	volatile DWORD	m_lTStartPulseFront;// Time in ms of starting front of pulse
 	volatile DWORD	m_lTStartQ;			// Time in ms of starting calculation current flow Q
 	DWORD	m_lTInterval4Q;				// Interval (ms) for calculate current flow
@@ -69,6 +73,8 @@ public:
 		m_nInpPulseWidth = nPulseWidth;
 		m_nALM_FQHWidth = nALM_FQHWidth;
 		m_nALM_FQLWidth = nALM_FQLWidth;	
+
+		for (int i = 0; i < MA_NVAL; m_pfQ[i++] = 0);
 		
 	}
 	~CEMFM() { }
@@ -83,20 +89,24 @@ public:
 			void	(*ISR)()		// external interrupt ISR
 	);
 
-	bool	isPulseFront()					{ return (digitalRead(m_nINP_PULSE_PIN) == m_nTypePulseFront) ? TRUE : FALSE; }
-	bool	isPulse(DWORD lTCurr)			{ return (lTCurr >= m_lTStartPulseFront + m_nInpPulseWidth) ? TRUE : FALSE; }
-	void	SetTStartPulse(DWORD lTStart)	{ m_lTStartPulseFront = lTStart; }
-	void	SetCountFull(DWORD dwCountF)	{ m_dwCountFull = dwCountF; }
-	DWORD	GetCountFull()					{ return m_dwCountFull; }
-	void	SetCountCurr(DWORD dwCountC)	{ m_dwCountCurr = dwCountC; }
-	DWORD	GetCountCurr()					{ return m_dwCountCurr; }
+	bool	isPulseFront()					{ return (digitalRead(m_nINP_PULSE_PIN) == m_nTypePulseFront) ? TRUE : FALSE;	}
+	bool	isPulse(DWORD lTCurr)			{ return (lTCurr >= m_lTStartPulseFront + m_nInpPulseWidth) ? TRUE : FALSE;		}
+	void	SetTStartPulse(DWORD lTStart)	{ m_lTStartPulseFront = lTStart;	}
+	void	SetCountFull(DWORD dwCountF)	{ m_dwCountFull = dwCountF;			}
+	DWORD	GetCountFull()					{ return m_dwCountFull;				}
+	void	SetCountCurr(DWORD dwCountC)	{ m_dwCountCurr = dwCountC;			}
+	DWORD	GetCountCurr()					{ return m_dwCountCurr;				}
 
 	float	CalculateQ();
-	float	GetQCurr()						{ return m_fQm3h; }
-	void	SetQCurr(float fQ)				{ m_fQm3h = fQ; }
+	float	CalculateQ(DWORD lTimeInt);
+	float	CalculateQMA(float fQcurr);
 
-	void	StartTimer()	{ m_lTStartTimer = millis(); m_lTTimerInterval = 0; m_isTimerStart = true;}
-	void	StopTimer()		{ m_isTimerStart = false; m_lTTimerInterval = millis() - m_lTStartTimer; }
+	float	GetQCurr()						{ return m_fQm3h;	}
+	float	GetQMA()						{ return m_fQMAm3h; }
+	void	SetQCurr(float fQ)				{ m_fQm3h = fQ;		}
+
+	void	StartTimer()	{ m_lTStartTimer = millis(); m_lTTimerInterval = 0; m_isTimerStart = true;	}
+	void	StopTimer()		{ m_isTimerStart = false; m_lTTimerInterval = millis() - m_lTStartTimer;	}
 	DWORD	GetTimer()		{ if (m_isTimerStart == true) m_lTTimerInterval = millis() - m_lTStartTimer;
 		return 	m_lTTimerInterval;
 	}
