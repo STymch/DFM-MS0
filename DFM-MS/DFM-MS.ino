@@ -179,7 +179,7 @@ void setup()
 	pDataMS->SetPowerU(nU);
 
 	// Delay before starting main loop
-	Serial.println();	Serial.print("--==-- DFM-MS: Starting main loop!");
+	Serial.println();	Serial.print("--==-- DFM-MS: Starting main loop after 5 sec ...");
 	delay(5000);
 }
 

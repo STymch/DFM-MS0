@@ -1,5 +1,4 @@
 ﻿
-#include <HTU21D.h>
 #include "CommDef.h"
 
 // SoftwareSerial library
@@ -23,16 +22,16 @@ void setup() {
 
 
 // Define pin modes for software TX, RX:
-  pinMode(RX_PIN, INPUT);
-  pinMode(TX_PIN, OUTPUT);
+pinMode(RX_PIN, INPUT);
+pinMode(TX_PIN, OUTPUT);
   
-  // Set the data rate and open hardware COM port:
-  Serial.begin(DR_HARDWARE_COM);
-  BTSerial.begin(DR_SOFTWARE_COM);
+// Set the data rate and open hardware COM port:
+Serial.begin(DR_HARDWARE_COM);
+BTSerial.begin(DR_SOFTWARE_COM);
 
-  // Wait for serial port to connect. Needed for native USB port only
-  while (!Serial);
-  Serial.println("Starting hardware COM!");
+// Wait for serial port to connect. Needed for native USB port only
+while (!Serial);
+Serial.println("Starting hardware COM!");
 
   // Set the data rate and open software COM port:
   /*if (nTypeSerial == 1) {
