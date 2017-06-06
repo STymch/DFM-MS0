@@ -48,8 +48,8 @@ const int	TX_PIN			= 11;		// Software UART TX pin, connect to RX of Bluetooth HC
 const int   LED_PIN			= 13;		// LED output pin
 
 // Serial ports parameters
-const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
-const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
+const long  DR_HARDWARE_COM = 115200;	// Data rate for hardware COM, bps
+const long  DR_SOFTWARE_COM = 115200;	// Data rate for software COM, bps
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Time parameters
