@@ -48,8 +48,8 @@ const int	TX_PIN			= 11;		// Software UART TX pin, connect to RX of Bluetooth HC
 const int   LED_PIN			= 13;		// LED output pin
 
 // Serial ports parameters
-const long  DR_HARDWARE_COM = 115200;	// Data rate for hardware COM, bps
-const long  DR_SOFTWARE_COM = 115200;	// Data rate for software COM, bps
+const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
+const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Time parameters
@@ -206,18 +206,18 @@ void loop()
 	interrupts();
 
 	// Calculate current and moving average of flow Q: method 1
-	noInterrupts();
+/*	noInterrupts();
 	pEMFM->CalculateQ();
 	interrupts();
-
-/*	// Calculate current and moving average of flow Q: method 2
+*/
+	// Calculate current and moving average of flow Q: method 2
 	if (lCount % (TIME_INT4Q / DELAY_LOOP_MS) == 0)
 	{
 		noInterrupts();
 		pEMFM->CalculateQ(TIME_INT4Q);
 		interrupts();
 	}
-*/
+
 	// Set moving average of Q into data packet
 	pDataMS->SetQ(pEMFM->GetQMA());
 //	pDataMS->SetQ(pEMFM->GetQCurr());
