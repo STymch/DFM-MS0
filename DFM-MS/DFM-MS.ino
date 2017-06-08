@@ -53,7 +53,7 @@ const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
 const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
 
 // Time parameters
-const DWORD	DELAY_LOOP_MS = 100;		// Delay for main loop, millises
+const DWORD	DELAY_LOOP_MS = 200;		// Delay for main loop, millises
 const DWORD	DELAY_TEMP_SENSOR = 1000;	// Delay for measuring temperature
 const DWORD	TIME_INT4Q = 500;			// Interval (ms) for calculate current flow Q
 
@@ -206,10 +206,11 @@ void loop()
 	interrupts();
 
 	// Calculate current and moving average of flow Q: method 1
-/*	noInterrupts();
+	noInterrupts();
 	pEMFM->CalculateQ();
 	interrupts();
-*/
+
+/*
 	// Calculate current and moving average of flow Q: method 2
 	if (lCount % (TIME_INT4Q / DELAY_LOOP_MS) == 0)
 	{
@@ -217,7 +218,7 @@ void loop()
 		pEMFM->CalculateQ(TIME_INT4Q);
 		interrupts();
 	}
-
+*/
 	// Set moving average of Q into data packet
 	pDataMS->SetQ(pEMFM->GetQMA());
 //	pDataMS->SetQ(pEMFM->GetQCurr());
@@ -232,8 +233,8 @@ void loop()
 		nLEDState = !nLEDState;
 		digitalWrite(LED_PIN, nLEDState);
 
-		// Print data
-/*		Serial.println();		Serial.print(""); Serial.print(lCount);
+/*		// Print data
+		Serial.println();		Serial.print(""); Serial.print(lCount);
 		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
 		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
 		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);

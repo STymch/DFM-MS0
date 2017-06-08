@@ -78,13 +78,10 @@ FLOAT	CEMFM::CalculateQ(DWORD lTimeInt)
 // Calculate moving average of flow Q
 FLOAT	CEMFM::CalculateQMA(float fQcurr)
 {
-	m_fQMAm3h = 0;
-	for (int i = 0; i < MA_NVAL - 1; ++i) {
-		m_pfQ[i] = m_pfQ[i + 1];
-		m_fQMAm3h += m_pfQ[i] / MA_NVAL;
-	}		
+	m_fQMAm3h += (fQcurr - m_pfQ[0]) / MA_NVAL;
+
+	for (int i = 0; i < MA_NVAL - 1; ++i)	m_pfQ[i] = m_pfQ[i + 1];
 	m_pfQ[MA_NVAL - 1] = fQcurr;
-	m_fQMAm3h += fQcurr / MA_NVAL;
 	
 	return m_fQMAm3h;
 }
