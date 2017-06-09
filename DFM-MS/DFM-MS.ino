@@ -37,7 +37,9 @@
 const int   POWER_ON_PIN	= 0;		// Power analog input pin
 
 // Arduino digital GPIO
+const int   EXT_BUTTON_PIN	= 2;		// External button input pin
 const int   EMFM_PIN		= 3;		// EMFM digital out input pin
+
 const int   POWER_OFF_PIN	= 4;		// Power off output pin
 const int   TEMP_PIN		= 5;		// Temperature sensor DS18B20 DQ out input pin
 const int   ALM_FQH_PIN		= 6;		// EEMFM FQH ALARM out input pin

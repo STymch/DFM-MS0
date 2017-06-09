@@ -16,6 +16,7 @@
 // <<< CDataMS - class for structure of data of DFM-MS
 ///////////////////////////////////////////////////////
 const INT		DATA_LEN = 31;				// Size of data in bytes
+
 class CDataMS
 {
 protected:
@@ -37,7 +38,7 @@ protected:
 					int	m_btLowBatteryPower		: 1;// 4 - not used
 					int	m_btRHTSensorError		: 1;// 5 - RHT sensor alarm
 					int m_btEndBatteryRHTSensor	: 1;// 6 - end of battery RHT Sensor: VDD < 2.25V
-					int m_btReserv				: 1;// 7 - not used
+					int m_btStartStopExt		: 1;// 7 - start of test from ext interrupt: 1, 0 - stopped
 				};
 			};
 			FLOAT	m_fTemprAir;			// Температура воздуха, C							4
@@ -88,6 +89,7 @@ public:
 	void	SetEMFM_FQL(int bit)			{ m_btEMFM_FQL = bit;				}
 	void	SetRHTSensorError(int bit)		{ m_btRHTSensorError = bit;			}
 	void	SetEndBatteryRHTSensor(int bit) { m_btEndBatteryRHTSensor = bit;	}
+	void	SetStartStopExt(int bit)		{ m_btStartStopExt = bit;			}
 
 	// Get status bits
 	BYTE	GetStatus()				{ return m_bStatus;					}
@@ -96,7 +98,7 @@ public:
 	int		GetEMFM_FQL()			{ return m_btEMFM_FQL;				}
 	int		GetRHTSensorError()		{ return m_btRHTSensorError;		}
 	int		GetEndBatteryRHTSensor(){ return m_btEndBatteryRHTSensor;	}
-
+	int		GetStartStopExt()		{ return m_btStartStopExt;			}
 
 };
 
