@@ -146,6 +146,11 @@ void setup()
 	}
 	pEMFM->Init(0, DWORD(-1), TIME_INT4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
 
+	// Set pin mode for external button
+	pinMode(EXT_BUTTON_PIN, INPUT);
+	// Set external interrupt ISR for external button
+	attachInterrupt(digitalPinToInterrupt(EXT_BUTTON_PIN), ISR_ExtButtonPress, FALLING);
+
 	// Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
 	// Get RH and temperature from sensor
@@ -321,6 +326,19 @@ void ISR_InputPulse2()
 			pEMFM->StopTimer();		// stop Timer
 		}
 	}
+}
+
+///////////////////////////////////////////////////////////////
+// External interrupt ISR callback function, antitinkling is off
+///////////////////////////////////////////////////////////////
+void ISR_ExtButtonPress()
+{
+	// Blink LED 
+	nLEDState = !nLEDState;
+	digitalWrite(LED_PIN, nLEDState);
+	
+	// Set Start Stop bit
+	pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
 }
 
 ///////////////////////////////////////////////////////////////
