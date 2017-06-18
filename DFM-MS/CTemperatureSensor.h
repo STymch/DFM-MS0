@@ -36,8 +36,13 @@ public:
 	~CTemperatureSensor() { delete m_pDS; }
 	
 	// Methods
-	int	Detect();							// Detect temperature sensor
-	int	GetTemperature(float& fTemperature);// Get temperature from sensor: 0 - celsius, 1 - fahrenheit
+	// Detect temperature sensor
+	// Return:	0 - sensor OK, -1 - no sensor, 1 - CRC is not valid, 2 - device is not a DS18x20 family
+	int	Detect();
+
+	// Get temperature from sensor in celsius
+	// Return:	0 - sensor OK, 1 - sensor error
+	int	GetTemperature(float& fTemperature);
 };
 
 

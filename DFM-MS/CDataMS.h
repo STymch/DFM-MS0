@@ -25,10 +25,10 @@ protected:
 		BYTE		m_pDataMS[DATA_LEN + 1];// Array of bytes for data
 		struct								// Structure of data
 		{
-			BYTE	m_bLen;					// Длина пакета информации = DATA_LEN				1
+			BYTE	m_bLen;					// Data packet length = DATA_LEN				1
 			union
 			{
-				BYTE	m_bStatus;			// Биты состояни элементов измерительной системы	1
+				BYTE	m_bStatus;			// Status bits									1
 				struct
 				{
 					int	m_btReceiveDataError	: 1;// 0 - not used
@@ -41,14 +41,14 @@ protected:
 					int m_btStartStopExt		: 1;// 7 - start of test from ext interrupt: 1, 0 - stopped
 				};
 			};
-			FLOAT	m_fTemprAir;			// Температура воздуха, C							4
+			FLOAT	m_fTemprAir;			// Temperature of air, C							4
 			FLOAT	m_fRHumidityAir;		// Compensated Humidity, %							4
-			FLOAT	m_fTemprWater;			// Температура воды, C								4
-			UINT	m_nPowerU;				// Уровень зарда АКБ								2
-			volatile FLOAT	m_fQ;			// Мгновенный поток имп/сек							4
-			volatile DWORD	m_dwTimeInt;	// Интервал времени, миллисекунды					4
-			volatile DWORD	m_dwCountFull;	// Общий счетчик импульсов							4
-			volatile DWORD	m_dwCountCurr;	// Счетчик импульсов для заданного пролива			4	
+			FLOAT	m_fTemprWater;			// Temperature of water, C							4
+			UINT	m_nPowerU;				// Power voltage, V									2
+			volatile FLOAT	m_fQ;			// Instant flow m3/h								4
+			volatile DWORD	m_dwTimeInt;	// Time's interval, millis							4
+			volatile DWORD	m_dwCountFull;	// Full pulse counter, incremental					4
+			volatile DWORD	m_dwCountCurr;	// Current pulse counter for tests, decremental		4	
 		};
 	};
 public:

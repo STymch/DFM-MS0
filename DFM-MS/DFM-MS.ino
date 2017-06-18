@@ -15,12 +15,13 @@
 // Content:
 //  - declare global variables & const
 //  - functions:
-//		setup()				-	Initialisation FMVI-MS
-//		loop()				-	Working loop of FMVI-MS
-//		ISR_InputPulse1()	-	External interrupt ISR callback function, antitinkling ON
-//		ISR_InputPulse2()	-	External interrupt ISR callback function, antitinkling OFF
-//		BTSerialReadCmnd()	-	Read command from FMVI-CP by BT Serial Port
-//		SerialUI()			-	User interface by srial port
+//		setup()					-	Initialisation DFM-MS
+//		loop()					-	Working loop of DFM-MS
+//		ISR_InputPulseAntOFF	-	ISR callback function for pulse out of EMFM, antitinkling is off
+//		ISR_InputPulseAntON		-	ISR callback function for pulse out of EMFM, antitinkling is on
+//		ISR_ExtButtonPressAntON -	ISR callback function for press external button, antitinkling is on
+//		BTSerialReadCmnd()		-	Read command from DFM-CP by BT Serial Port
+//		SerialUI()				-	User interface by srial port (hardware or BT)
 /////////////////////////////////////////////////////////////////////////////////
 
 #include "CommDef.h"
@@ -31,6 +32,8 @@
 #include "CEMFM.h"
 #include "CTemperatureSensor.h"
 #include "CRHTSensor.h"
+#include "CMSExtButton.h"
+#include "CLED.h"
 
 // Global parameters
 // Arduino analog GPIO
@@ -67,41 +70,50 @@ DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < wi
 int		nPulseWidth = 1;				// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
 int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-int		nEXT_INT_MODE;					// Mode of external interrupt: LOW, CHANGE, RISING, FALLING
-void	(*pISR)();						// Pointer to external interrupt ISR function 
+int		nPULSE_INT_MODE;				// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
+void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
+int		nExtButtonPressWidth = 100;		// Width in millisec of external button press
+int		nEXT_BUTTON_INT_MODE = CHANGE;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
 
 bool	isMeasuring = false;			// Measuring state flag: true - measuring ON, false - measuring OFF
 bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
+int		nLEDStateInit = LOW;			// Init LED state
 
-byte	pBuff[DATA_LEN+1];
+byte	pBuff[DATA_LEN+1];				// Buffer for save sending data
 
-int		nLEDState = LOW;	
+int		nTypeSerialCOM = 1;				// Type of serial port for UI: 0 - hardware COM, 1 - bluetooth COM
+
 bool	isSerialPrn = true;
-
 int		i, nLen;
 long	lCount = 0;
 int		nTypeSerial = 1; // 0 - hardware, 1 - software
 DWORD	dwTimerTick = 0;
 
-// Global objects
-// Serial ports
-CSerialPort		*pBTSerialPort;	// For bluetooth modem 
+// ---===--- Global objects ---===---
+// --==-- Bluetooth serial port
+CSerialPort			*pBTSerialPort;	// For bluetooth modem 
 				
-// Data structure of data of DFM-MS
-CDataMS	*pDataMS;
-CCmndMS	*pCmndMS;
+// --==-- Send data packet object
+CDataMS				*pDataMS;
+// --==-- Receive commands object
+CCmndMS				*pCmndMS;
 
-// EMFM/Generator
-CEMFM	*pEMFM;
+// --==-- Flowmeter EMFM
+CEMFM				*pEMFM;
 
-// Air compensated humidity and temperature sensor
-CRHTSensor	*pRHTSensor;
+// --==-- Humidity & temperature sensor
+CRHTSensor			*pRHTSensor;
 
-// Water temperature sensor
+// --==-- Temperature of water sensor
 CTemperatureSensor	*pTemperatureSensor;
 
-// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire DSTempSensor(TEMP_PIN);
+// --==-- External button of DFM-MS object
+CMSExtButton		*pMSExtButton;
+
+// --==-- LED objects
+CLED				*pLED2Loop,		// LED in mail loop
+					*pLED2ExtButton;// LED for press button
+
 
 byte	bStatus = 0;
 FLOAT	fTAir, fRHumidityAir, fTWater, fQ = 0.0;
@@ -113,79 +125,83 @@ UINT	nU = 749;
 ///////////////////////////////////////////////////////////////
 void setup() 
 {
-	// Set the data rate and open hardware COM port:
+	int rc;
+
+	// --==-- Hardware serial port
+	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
 	while (!Serial);
-	
-	// Set pin mode for LED pin
-	pinMode(LED_PIN, OUTPUT);
-	digitalWrite(LED_PIN, nLEDState);
-
-	// Create objects of DFM-MS:
-	// Bluetooth serial port
+		
+	// --==-- Bluetooth serial port
+	// Create object & initialization
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
 	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
 
-	// Data packet object
+	// --==-- Send data packet object
+	// Create object
 	pDataMS = new CDataMS;
+	// Clear status byte
 	pDataMS->SetStatus(0);
 
-	// Commands object
+	// --==-- Receive commands object
+	// Create object
 	pCmndMS = new CCmndMS;
 
-	// Flowmeter
+	// --==-- Flowmeter EMFM
+	// Create object
 	pEMFM = new CEMFM(EMFM_PIN, ALM_FQH_PIN, ALM_FQH_PIN, LOW, LOW, LOW, nPulseWidth, nALM_FQHWidth, nALM_FQLWidth);
 	if (isAntiTinklingOn == true) {	// antitinkling is ON
-		nEXT_INT_MODE = CHANGE;
-		pISR = ISR_InputPulse1;
+		nPULSE_INT_MODE = CHANGE;
+		pISR = ISR_InputPulseAntON;
 	}
-	else {					// antitinkling is OFF
-		nEXT_INT_MODE = FALLING;
-		pISR = ISR_InputPulse2;
+	else {							// antitinkling is OFF
+		nPULSE_INT_MODE = FALLING;
+		pISR = ISR_InputPulseAntOFF;
 	}
-	pEMFM->Init(0, DWORD(-1), TIME_INT4Q, PULSE_UNIT_LTR, nEXT_INT_MODE, pISR);
+	// Initialization
+	pEMFM->Init(0, DWORD(-1), TIME_INT4Q, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
 
-	// Set pin mode for external button
-	pinMode(EXT_BUTTON_PIN, INPUT);
-	// Set external interrupt ISR for external button
-	attachInterrupt(digitalPinToInterrupt(EXT_BUTTON_PIN), ISR_ExtButtonPress, FALLING);
-
-	// Humidity & temperature sensor
+	// --==-- Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
 	// Get RH and temperature from sensor
-	if (pRHTSensor->GetRHT(fRHumidityAir, fTAir))	
-	{
-		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error!");
-		pDataMS->SetRHTSensorError(1);	// set status bit
-	}
-	else
-	{
+	if ( !(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)) ) {
 		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) OK!");
-		pDataMS->SetRHTSensorError(0);				// set status bit
 	}
-	pDataMS->SetTemprAir(fTAir);
-	pDataMS->SetRHumidityAir(fRHumidityAir);
+	else {
+		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error = "); Serial.print(rc);
+	}	
+	pDataMS->SetRHTSensorError( !rc ? 0 : 1 );			// set status bit RHT sensor
+	pDataMS->SetEndBatteryRHTSensor(rc == 1 ? 1 : 0);	// set status bit end of battery RHT sensor
+	pDataMS->SetTemprAir(fTAir);						// set temperature of air
+	pDataMS->SetRHumidityAir(fRHumidityAir);			// set humidity
 
-	// Temperature of water sensor
+	// --==-- Temperature of water sensor
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, DELAY_TEMP_SENSOR);
 	// Get temperature from sensor
-	if (pTemperatureSensor->GetTemperature(fTWater))
-	{
-		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor Error!");
-		pDataMS->SetTempSensorError(1);	// set status bit
-	}
-	else 
-	{
+	if ( !(rc = pTemperatureSensor->GetTemperature(fTWater)) ) {
 		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor OK!");
-		pDataMS->SetTempSensorError(0);	// set status bit
 	}
-	pDataMS->SetTemprWater(fTWater);
+	else {
+		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor Error =\t"); Serial.print(rc);
+	}
+	pDataMS->SetTempSensorError( !rc ? 0 : 1);	// set status bit
+	pDataMS->SetTemprWater(fTWater);			// set water temperature
 	
+	// --==-- External button of DFM-MS object
+	// Create object
+	pMSExtButton = new CMSExtButton(EXT_BUTTON_PIN, LOW, nExtButtonPressWidth, nEXT_BUTTON_INT_MODE, ISR_ExtButtonPressAntON);
+
 	// Set initial U battery
 	pDataMS->SetPowerU(nU);
 
-	// Delay before starting main loop
+	// --==-- LED in mail loop
+	pLED2Loop = new CLED(LED_PIN, nLEDStateInit);
+
+	// --==--  LED for press button
+	pLED2ExtButton = new CLED(LED_PIN, nLEDStateInit);
+
+	// --==-- Delay before starting main loop
 	Serial.println();	Serial.print("--==-- DFM-MS: Starting main loop after 5 sec ...");
 	delay(5000);
 }
@@ -205,7 +221,7 @@ void loop()
 	::BTSerialReadCmnd();
 
 	// Read and execute command from serial port console
-	::SerialUI();
+	::SerialUI(nTypeSerialCOM);
 
 	// Write data into BT serial port
 	noInterrupts();
@@ -232,13 +248,15 @@ void loop()
 
 	// Counter of loops
 	lCount++;
-	
+
+	// Generate test flow
+	for( int i=0; i++ < 12; ISR_InputPulseAntOFF());
+		
 	// Blink LED and debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
 	{
 		// Blink LED 
-		nLEDState = !nLEDState;
-		digitalWrite(LED_PIN, nLEDState);
+		pLED2Loop->Blink();
 
 /*		// Print data
 		Serial.println();		Serial.print(""); Serial.print(lCount);
@@ -259,50 +277,9 @@ void loop()
 }
 
 ///////////////////////////////////////////////////////////////
-// External interrupt ISR callback function, antitinkling is on
+// ISR callback function for pulse out of EMFM, antitinkling is off
 ///////////////////////////////////////////////////////////////
-void ISR_InputPulse1()
-{
-	// Read pulse pin state - is pin state is front?
-	if (pEMFM->isPulseFront()) // pulse begin
-		pEMFM->SetTStartPulse(millis()); // save time of pulse begin
-	else	// pulse end, check correct pulse 
-	{
-		if (pEMFM->isPulse(millis())) // pulse correct
-		{
-			// Increment counter of all EMFM pulse
-			pEMFM->SetCountFull(pEMFM->GetCountFull() + 1);
-			// Save new counter in data packet
-			pDataMS->SetCountFull(pEMFM->GetCountFull());
-
-			// Decrement current counter while > 0
-			if (pEMFM->GetCountCurr() > 0)
-			{
-				// Decrement counter
-				pEMFM->SetCountCurr(pEMFM->GetCountCurr() - 1);
-				// Save new counter in data packet
-				pDataMS->SetCountCurr(pEMFM->GetCountCurr());
-				
-				// Read Timer and save it in data packet
-				pDataMS->SetTimeInt(pEMFM->GetTimer());
-				
-				// If current counter == 0
-				if (pEMFM->GetCountCurr() == 0) {
-					isMeasuring = false;	// set flag of measuring OFF
-					pEMFM->StopTimer();		// stop Timer
-				}
-			}
-		}
-		else	// incorrect pulse, counting!
-		{
-			dwCountBadPulse++;
-		}
-	}
-}
-///////////////////////////////////////////////////////////////
-// External interrupt ISR callback function, antitinkling is off
-///////////////////////////////////////////////////////////////
-void ISR_InputPulse2()
+void ISR_InputPulseAntOFF()
 {
 	// Increment counter of all EMFM pulse
 	pEMFM->SetCountFull(pEMFM->GetCountFull() + 1);
@@ -329,37 +306,85 @@ void ISR_InputPulse2()
 }
 
 ///////////////////////////////////////////////////////////////
-// External interrupt ISR callback function, antitinkling is off
+// ISR callback function for pulse out of EMFM, antitinkling is on
 ///////////////////////////////////////////////////////////////
-void ISR_ExtButtonPress()
+void ISR_InputPulseAntON()
 {
-	// Blink LED 
-	nLEDState = !nLEDState;
-	digitalWrite(LED_PIN, nLEDState);
-	
-	// Set Start Stop bit
-	pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
+	// Read pulse pin state - is pin state is front?
+	if (pEMFM->isPulseFront()) // pulse begin
+		pEMFM->SetTStartPulse(millis()); // save time of pulse begin
+	else	// pulse end, check correct pulse 
+	{
+		if (pEMFM->isPulse(millis())) // pulse correct
+		{
+			// Increment counter of all EMFM pulse
+			pEMFM->SetCountFull(pEMFM->GetCountFull() + 1);
+			// Save new counter in data packet
+			pDataMS->SetCountFull(pEMFM->GetCountFull());
+
+			// Decrement current counter while > 0
+			if (pEMFM->GetCountCurr() > 0)
+			{
+				// Decrement counter
+				pEMFM->SetCountCurr(pEMFM->GetCountCurr() - 1);
+				// Save new counter in data packet
+				pDataMS->SetCountCurr(pEMFM->GetCountCurr());
+
+				// Read Timer and save it in data packet
+				pDataMS->SetTimeInt(pEMFM->GetTimer());
+
+				// If current counter == 0
+				if (pEMFM->GetCountCurr() == 0) {
+					isMeasuring = false;	// set flag of measuring OFF
+					pEMFM->StopTimer();		// stop Timer
+				}
+			}
+		}
+		else	// incorrect pulse, counting!
+		{
+			dwCountBadPulse++;
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////
-// Read command from FMVI-CP
+// ISR callback function for press external button, antitinkling is on
+///////////////////////////////////////////////////////////////
+void ISR_ExtButtonPressAntON()
+{
+	// Read press button pin state - is pin state is front?
+	if (pMSExtButton->isPressFront())			// button press begin
+		pMSExtButton->SetTStartPress(millis()); // save time of button press begin
+	else	// button press end, check correct width of button press 
+		if (pMSExtButton->isPress(millis())) // button press correct
+		{
+			// Blink LED 
+			pLED2ExtButton->Blink();
+			
+			// Reverse star-stop bit in status byte of DFM-MS
+			pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
+		}
+}
+
+///////////////////////////////////////////////////////////////
+// Read command from DFM-CP
 ///////////////////////////////////////////////////////////////
 void BTSerialReadCmnd()
 {
 	DWORD	dwCountCurr;
-	int		nErrCode;
+	int		nErrCode, rc;
 
-	// Read command from FMVI-CP
-	//Serial.println();	Serial.print("Read:");
+	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
-		// Analize input command
 //		Serial.println();
 //		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
 //		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
-
+		
+		// Analize input command
 		switch (pCmndMS->GetCode()) 
 		{
-			case cmndSetCount:			// Set current pulse count 
+			// 67 Set current pulse count
+			case cmndSetCount: 
 				// if 0 - set count to DWORD(-1)
 				if ((dwCountCurr = pCmndMS->GetArg_dw()) == 0)
 				{
@@ -379,40 +404,39 @@ void BTSerialReadCmnd()
 				// Save current pulse count into data packet
 				pDataMS->SetCountCurr(dwCountCurr);
 				interrupts();
-				
-//				Serial.print("\tPASSED");
-				
+//					Serial.print("\tPASSED");				
 				break;
 
-			case cmndReadTemprWater:		// Read water temperature from sensor
+			// 84 Read water temperature from sensor
+			case cmndReadTemprWater:
 				if (!isMeasuring) {
 					// Read temperature and save in data packet
-					pDataMS->SetTempSensorError(pTemperatureSensor->GetTemperature(fTWater));
+					pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
 					pDataMS->SetTemprWater(fTWater);
 //					Serial.print("\tPASSED");				
 				}
 //				else Serial.print("\tSKIP");
-
 				break;
 
-			case cmndReadRHT:		// Read humidity and temperature from RHT sensor
+			// 72 Read humidity and temperature from RHT sensor
+			case cmndReadRHT:
 				if (!isMeasuring) {
 					// Read humidity and temperature from RHT sensor and save in data packet
-					pDataMS->SetRHTSensorError(pRHTSensor->GetRHT(fRHumidityAir, fTAir));
+					rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+					pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
+					pDataMS->SetEndBatteryRHTSensor(rc == 1 ? 1 : 0);	// set status bit end of battery RHT sensor
 					pDataMS->SetTemprAir(fTAir);
 					pDataMS->SetRHumidityAir(fRHumidityAir);
 //					Serial.print("\tPASSED");
 				}
 //				else Serial.print("\tSKIP");
-
 				break;
 
-			case cmndPowerOff:			// Turn off power
+			// 80 Turn off power
+			case cmndPowerOff:
 
 				break;
-
 		}
-
 	}
 	else if (nErrCode != -1) {
 //		Serial.print(" Err=");	Serial.print(nErrCode);
@@ -422,7 +446,9 @@ void BTSerialReadCmnd()
 ///////////////////////////////////////////////////////////////
 // User interface for srial port
 ///////////////////////////////////////////////////////////////
-void SerialUI()
+void SerialUI(	
+				int nTypeSerial // Typeof serial port: 0 - hardware COM, 1 - Bluetooth COM
+)
 {
 	// Read command from serial monitor 
 	if (Serial.available()) {

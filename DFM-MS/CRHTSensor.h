@@ -34,8 +34,13 @@ class CRHTSensor
 	~CRHTSensor() { delete m_pHTU21D; }
 	
 	// Methods
-	int		Detect();										// Detect RHT sensor
-	int		GetRHT(float &fHumidity, float &fTemperature);	// Get RH and temperature from sensor
+	// Detect RHT sensor
+	// Return:	0 - sensor OK, -1 - no sensor, 1 - Battery LOW
+	int		Detect();
+
+	// Get RH and temperature from sensor
+	// Return:	0 - sensor OK, -1 - no sensor, 1 - Battery LOW
+	int		GetRHT(float &fHumidity, float &fTemperature);
 };
 
 

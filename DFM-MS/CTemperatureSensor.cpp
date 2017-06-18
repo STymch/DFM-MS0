@@ -1,23 +1,22 @@
 #include "CTemperatureSensor.h"
 
 // Detect temperature sensor
-// Return:	0 - sensor OK, 
-//			-1 - no sensor,
-//			1 - no more addresses, 
-//			2 - CRC is not valid.
+// Return:	0 - sensor OK, -1 - no sensor, 1 - CRC is not valid, 2 - device is not a DS18x20 family
 int CTemperatureSensor::Detect()
 {
 	int		retcode = -1;
 	
 	// Detect sensor
-	if (m_pDS->search(m_pbAddr))	// read adresses
+	if (m_pDS->search(m_pbAddr) != 0) {	// read adresses
 		if (OneWire::crc8(m_pbAddr, 7) == m_pbAddr[7]) 	// check CRC
 		{
+			retcode = 0;
+
 			// The first ROM byte indicates which chip
 			switch (m_pbAddr[0]) {
 			case 0x10:	// Chip = DS18S20 or old DS1820
 				m_nTypeSensor = 1;
-				strcpy(m_strSensorName,"DS18S20");
+				strcpy(m_strSensorName, "DS18S20");
 				break;
 			case 0x28:	// Chip = DS18B20
 				m_nTypeSensor = 2;
@@ -30,29 +29,27 @@ int CTemperatureSensor::Detect()
 			default:	// Device is not a DS18x20 family
 				m_nTypeSensor = -1;
 				strcpy(m_strSensorName, "\0");
+				retcode = 2;
 				break;
 			}
-			retcode = 0;
 		}
 		else	// CRC is not valid
-			retcode = 2;
-	else		// No more addresses
-		retcode = 1;
+			retcode = 1;
+	}
 
 	return retcode;
 }
 
-// Get temperature from sensor
-// Return:	0 - sensor OK, 
-//			1 - sensor error
+// Get temperature from sensor in celsius
+// Return:	0 - sensor OK, -1 - no sensor, 1 - CRC is not valid, 2 - device is not a DS18x20 family
 int	CTemperatureSensor::GetTemperature(float& fTemperature)
 {
-	int		rc = 1;
+	int		rc;
 	byte	data[12];
 	fTemperature = -1.0;
 	
 	// Detect temperature sensor
-	if (!Detect()) {
+	if ( !(rc = Detect()) ) {
 		m_pDS->reset();
 		m_pDS->select(m_pbAddr);
 		m_pDS->write(0x44, 1);
