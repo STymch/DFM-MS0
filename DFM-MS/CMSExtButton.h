@@ -49,11 +49,13 @@ class CMSExtButton
 
 		// Methods
 		// Is front of button press?
-		bool	isPressFront() { return (digitalRead(m_nINP_EXT_BUTTON_PIN) == m_nTypePressButtonFront) ? TRUE : FALSE; }
+		bool	isPressFront()			{ return (digitalRead(m_nINP_EXT_BUTTON_PIN) == m_nTypePressButtonFront) ? TRUE : FALSE; }
 		// Is button press correct?
-		bool	isPress(DWORD lTime) { return (lTime >= m_lTStartPressFront + m_nExtButtonPressWidth) ? TRUE : FALSE; }
+		bool	isPress(DWORD lTime)	{ return (lTime >= m_lTStartPressFront + m_nExtButtonPressWidth) ? TRUE : FALSE; }
 		// Save time of start button press
-		void	SetTStartPress(DWORD lTime) { m_lTStartPressFront = lTime; }
+		void	SetTStartPress(DWORD lTime)				{ m_lTStartPressFront = lTime; }
+		// Set width in millisec of external button press
+		void	SetExtButtonPressWidth(int nPressWidth) { m_nExtButtonPressWidth = nPressWidth; }
 };
 
 

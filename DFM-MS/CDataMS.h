@@ -107,11 +107,19 @@ public:
 ///////////////////////////////////////////////////////
 const INT		CMND_LEN = 5;				// Max size of command in bytes
 // Command codes
-enum Cmnd	{	cmndPowerOff		= 0x50,	// DFM-MS Power OFF
-				cmndSetImpInpPin	= 0x69,	// Set number of pulse input pin	
-				cmndSetCount		= 0x43,	// Set current counter (DWORD arg), if 0 - be set in DWORD(-1)
+enum Cmnd	{	// DFM_MS control commands
+				cmndPowerOff		= 0x50,	// Execte DFM-MS Power OFF
+				cmndSetCount		= 0x43,	// DWORD. Set current counter, if 0 - be set in DWORD(-1)
+				cmndReadRHT			= 0x48,	// Read compensated humidity and temperature of air from sensor			
 				cmndReadTemprWater	= 0x54,	// Read water temperature from sensor
-				cmndReadRHT			= 0x48,	// Read compensated humidity and temperature of air from sensor
+				
+				// Set parameters value commands
+				cmndSetLoopMSFreq		= 0xA0,	// DWORD. Set DFM-MS main loop frequancy, millis. Default = 200.
+				cmndSetQMA_Points		= 0xA1,	// UINT. Set number of points for calculate moving average of flow Q. Default = 10.
+				cmndSetInt4CalcQ		= 0xA2,	// DWORD. Interval for calculate instant flow Q, millis. Default = 500.
+				cmndSetButtonPressWidth = 0xA3,	// UINT. Width in millisec of external button press. Default = 100.
+				cmndSetAntiTinklingOn	= 0xA4,	// BYTE. Antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
+				cmndSetPulseWidth		= 0xA5,	// UINT. Width in millisec of EMFM output pulse. Default = 50.
 			};
 
 class CCmndMS

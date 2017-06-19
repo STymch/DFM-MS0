@@ -14,7 +14,7 @@
 ///////////////////////////////////////////////////////
 // <<< CEMFM - class for EMFM QTLD-15 / Generator
 ///////////////////////////////////////////////////////
-const int   MA_NVAL = 10;				// Number of point for calculate moving average of Q
+const int   MA_NVAL = 100;				// Maximm of points for calculate moving average of Q
 
 class CEMFM
 {
@@ -42,14 +42,14 @@ protected:
 	volatile DWORD	m_dwCountStartQ;	// Begin value of pulse couner for calculate current flow Q
 	volatile float	m_fQm3h = 0;		// Current flow m3/h
 	volatile float	m_fQMAm3h = 0;		// Moving average of flow m3/h
-	float			m_pfQ[MA_NVAL];		// Array for save current Q for calculate moving average of Q
 	volatile DWORD	m_lTStartPulseFront;// Time in ms of starting front of pulse
 	volatile DWORD	m_lTStartQ;			// Time in ms of starting calculation current flow Q
 	DWORD	m_lTInterval4Q;				// Interval (ms) for calculate current flow
+	int		m_nQMA_Points;				// Number of points for calculate moving average of instant flow Q
+	float	m_pfQ[MA_NVAL];				// Array for save current Q for calculate moving average of Q
 	int		m_nPulseOnLtr;				// Number of pulse from EMFM for 1 ltr water
 	bool	m_isQCalculate = TRUE;		// Flag: 1 - current Q is calculated, 0 - current Q not calculated.
 	// Timer for calculate time
-	
 	volatile bool	m_isTimerStart = FALSE;		// Flag: 1 - timer is start, 0 - timer is stop.
 	volatile DWORD	m_lTStartTimer;				// Time in ms of starting timer
 	volatile DWORD	m_lTTimerInterval = 0;		// Interval (ms) for timer
@@ -73,9 +73,6 @@ public:
 		m_nInpPulseWidth = nPulseWidth;
 		m_nALM_FQHWidth = nALM_FQHWidth;
 		m_nALM_FQLWidth = nALM_FQLWidth;	
-
-		for (int i = 0; i < MA_NVAL; m_pfQ[i++] = 0.0);
-		
 	}
 	~CEMFM() { }
 		
@@ -84,6 +81,7 @@ public:
 			DWORD	dwCountFull,	// counter of all input pulses from EMFM/Generator from turn on FMVI-MS
 			DWORD	dwCountCurr,	// current counter for input pulses from EMFM/Generator
 			DWORD	lTInterval4Q,	// interval in millisec for calculate current Q
+			int		nQMA_Points,	// Number of points for calculate moving average of instant flow Q
 			int		nPulseOnLtr,	// number of pulse from EMFM for 1 ltr water
 			int		nINT_MODE,		// mode of external interrupt: LOW, CHANGE, RISING, FALLING
 			void	(*ISR)()		// external interrupt ISR
@@ -91,6 +89,7 @@ public:
 
 	bool	isPulseFront()					{ return (digitalRead(m_nINP_PULSE_PIN) == m_nTypePulseFront) ? TRUE : FALSE;	}
 	bool	isPulse(DWORD lTCurr)			{ return (lTCurr >= m_lTStartPulseFront + m_nInpPulseWidth) ? TRUE : FALSE;		}
+	void	SetPulseWidth(int nPulseWidth)	{ m_nInpPulseWidth = nPulseWidth;	}
 	void	SetTStartPulse(DWORD lTStart)	{ m_lTStartPulseFront = lTStart;	}
 	void	SetCountFull(DWORD dwCountF)	{ m_dwCountFull = dwCountF;			}
 	DWORD	GetCountFull()					{ return m_dwCountFull;				}
@@ -104,7 +103,9 @@ public:
 	float	GetQCurr()						{ return m_fQm3h;	}
 	float	GetQMA()						{ return m_fQMAm3h; }
 	void	SetQCurr(float fQ)				{ m_fQm3h = fQ;		}
-
+	void	SetInt4CalcQ(DWORD lInt4CalcQ)	{ m_lTInterval4Q = lInt4CalcQ; }
+	void	SetQMA_Points(int nQMA_Points);	// Set number of points for calculate moving average of instant flow Q	
+	
 	void	StartTimer()	{ m_lTStartTimer = millis(); m_lTTimerInterval = 0; m_isTimerStart = true;	}
 	void	StopTimer()		{ m_isTimerStart = false; m_lTTimerInterval = millis() - m_lTStartTimer;	}
 	DWORD	GetTimer()		{ if (m_isTimerStart == true) m_lTTimerInterval = millis() - m_lTStartTimer;

@@ -35,7 +35,7 @@
 #include "CMSExtButton.h"
 #include "CLED.h"
 
-// Global parameters
+// Global constatnts
 // Arduino analog GPIO
 const int   POWER_ON_PIN	= 0;		// Power analog input pin
 
@@ -55,33 +55,31 @@ const int   LED_PIN			= 13;		// LED output pin
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
-const long	SERIAL_READ_TIMEOUT = 10;	// Timeout for serial port data read, millisecs
-
-// Time parameters
-const DWORD	DELAY_LOOP_MS = 200;		// Delay for main loop, millises
-const DWORD	DELAY_TEMP_SENSOR = 1000;	// Delay for measuring temperature
-const DWORD	TIME_INT4Q = 500;			// Interval (ms) for calculate current flow Q
+const long	COM_READ_TIMEOUT= 10;		// Timeout for serial port data read, millis
 
 // Metric parameters
-const DWORD	PULSE_UNIT_LTR = 1000;		// Quantity pulse in 1 ltr
+const DWORD	PULSE_UNIT_LTR	= 1000;		// Quantity pulse in 1 ltr
 
 // Global variables
-DWORD	dwCountBadPulse = 0;			// Counter bad input pulse packet (pulse front < width)
-int		nPulseWidth = 1;				// Width in millisec of EMFM output pulse
-int		nALM_FQHWidth = 50;				// Width in millisec of EMFM ALARM FQH signal
-int		nALM_FQLWidth = 50;				// Width in millisec of EMFM ALARM FQL signal
-int		nPULSE_INT_MODE;				// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
+DWORD	lLoopMSFreq			= 200;		// DFM-MS main loop frequancy, millis
+DWORD	lDelayTemprSensor	= 1000;		// Wait for measuring water temperature, millis
+DWORD	lInt4CalcQ			= 500;		// Interval for calculate instant flow Q, millis
+DWORD	dwCountBadPulse		= 0;		// Counter bad input pulse packet (pulse front < nPulseWidth)
+int		nQMA_Points			= 10;		// Number of points for calculate moving average of instant flow Q
+int		nPulseWidth			= 50;		// Width in millisec of EMFM output pulse
+int		nALM_FQHWidth		= 500;		// Width in millisec of EMFM ALARM FQH signal
+int		nALM_FQLWidth		= 500;		// Width in millisec of EMFM ALARM FQL signal
+int		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
 void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
-int		nExtButtonPressWidth = 100;		// Width in millisec of external button press
-int		nEXT_BUTTON_INT_MODE = CHANGE;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
+bool	isAntiTinklingOn	= false;	// Antitinkling flag for EMFM output pulse: true - ON, false - OFF
+int		nExtButtonPressWidth= 100;		// Width in millisec of external button press
+int		nEXT_BUTTON_INT_MODE= CHANGE;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
 
-bool	isMeasuring = false;			// Measuring state flag: true - measuring ON, false - measuring OFF
-bool	isAntiTinklingOn = false;		// Antitinkling flag: true - ON, false - OFF
-int		nLEDStateInit = LOW;			// Init LED state
+bool	isMeasuring			= false;	// Measuring state flag: true - Test is ON, false - Test is OFF
+
+int		nLEDStateInit		= LOW;		// Init LED state
 
 byte	pBuff[DATA_LEN+1];				// Buffer for save sending data
-
-int		nTypeSerialCOM = 1;				// Type of serial port for UI: 0 - hardware COM, 1 - bluetooth COM
 
 bool	isSerialPrn = true;
 int		i, nLen;
@@ -136,7 +134,7 @@ void setup()
 	// Create object & initialization
 	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
 	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
-	pBTSerialPort->SetReadTimeout(SERIAL_READ_TIMEOUT);
+	pBTSerialPort->SetReadTimeout(COM_READ_TIMEOUT);
 
 	// --==-- Send data packet object
 	// Create object
@@ -160,7 +158,7 @@ void setup()
 		pISR = ISR_InputPulseAntOFF;
 	}
 	// Initialization
-	pEMFM->Init(0, DWORD(-1), TIME_INT4Q, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
+	pEMFM->Init(0, DWORD(-1), lInt4CalcQ, nQMA_Points, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
 
 	// --==-- Humidity & temperature sensor
 	pRHTSensor = new CRHTSensor();
@@ -177,7 +175,7 @@ void setup()
 	pDataMS->SetRHumidityAir(fRHumidityAir);			// set humidity
 
 	// --==-- Temperature of water sensor
-	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, DELAY_TEMP_SENSOR);
+	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, lDelayTemprSensor);
 	// Get temperature from sensor
 	if ( !(rc = pTemperatureSensor->GetTemperature(fTWater)) ) {
 		Serial.println();		Serial.print("--==-- DFM-MS: Temperature Sensor OK!");
@@ -219,9 +217,6 @@ void loop()
 
 	// Read and execute command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
-
-	// Read and execute command from serial port console
-	::SerialUI(nTypeSerialCOM);
 
 	// Write data into BT serial port
 	noInterrupts();
@@ -273,7 +268,7 @@ void loop()
 	lTimeInt = millis() - lTimeBegin;
 
 	// Delay for other tasks
-	delay(DELAY_LOOP_MS - lTimeInt);
+	delay(lLoopMSFreq - lTimeInt);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -434,35 +429,93 @@ void BTSerialReadCmnd()
 
 			// 80 Turn off power
 			case cmndPowerOff:
-
 				break;
+
+
+			// 160 Set DFM-MS main loop frequancy, millis. Default = 200.
+			case cmndSetLoopMSFreq:
+				if (!isMeasuring) {
+					// Change parameter
+					noInterrupts();
+					lLoopMSFreq = pCmndMS->GetArg_dw();
+					interrupts();
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
+			// 161 Set number of points for calculate moving average of flow Q. Default = 10.
+			case cmndSetQMA_Points:
+				if (!isMeasuring) {
+					// Change parameter
+					noInterrupts();
+					pEMFM->SetQMA_Points(nQMA_Points = pCmndMS->GetArg_n());
+					interrupts();
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
+			// 162 Set interval for calculate instant flow Q, millis. Default = 500.
+			case cmndSetInt4CalcQ:
+				if (!isMeasuring) {
+					// Change parameter
+					noInterrupts();
+					pEMFM->SetInt4CalcQ(lInt4CalcQ = pCmndMS->GetArg_dw());
+					interrupts();
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
+			// 163 Set width in millisec of external button press. Default = 100.
+			case cmndSetButtonPressWidth:
+				if (!isMeasuring) {
+					// Change parameter
+					noInterrupts();
+					pMSExtButton->SetExtButtonPressWidth(nExtButtonPressWidth = pCmndMS->GetArg_n());
+					interrupts();
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
+			// 164 Set antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
+			case cmndSetAntiTinklingOn:
+				if (!isMeasuring) {
+					// Change parameter
+					isAntiTinklingOn = pCmndMS->GetArg_b();
+					if (isAntiTinklingOn == true) {	// antitinkling is ON
+						nPULSE_INT_MODE = CHANGE;
+						pISR = ISR_InputPulseAntON;
+					}
+					else {							// antitinkling is OFF
+						nPULSE_INT_MODE = FALLING;
+						pISR = ISR_InputPulseAntOFF;
+					}
+					// Re-Initialization
+					detachInterrupt(digitalPinToInterrupt(EMFM_PIN));
+					pEMFM->Init(0, DWORD(-1), lInt4CalcQ, nQMA_Points, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
+			// 165 Set Width in millisec of EMFM output pulse. Default = 50.
+			case cmndSetPulseWidth:
+				if (!isMeasuring) {
+					// Change parameter
+					noInterrupts();
+					pEMFM->SetPulseWidth(nPulseWidth = pCmndMS->GetArg_n());
+					interrupts();
+//					Serial.print("\tPASSED");
+				}
+//				else Serial.print("\tSKIP");
+				break;
+
 		}
 	}
 	else if (nErrCode != -1) {
 //		Serial.print(" Err=");	Serial.print(nErrCode);
 	}
-}
-
-///////////////////////////////////////////////////////////////
-// User interface for srial port
-///////////////////////////////////////////////////////////////
-void SerialUI(	
-				int nTypeSerial // Typeof serial port: 0 - hardware COM, 1 - Bluetooth COM
-)
-{
-	// Read command from serial monitor 
-	if (Serial.available()) {
-		char ch = Serial.read();
-		switch (ch) {
-		case '0'...'9':
-			// v = v * 10 + ch - '0';
-			break;
-
-		case 'p':
-			
-			break;
-		}
-	}
-
-
 }
