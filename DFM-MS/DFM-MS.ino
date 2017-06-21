@@ -81,7 +81,11 @@ int		nLEDStateInit		= LOW;		// Init LED state
 
 byte	pBuff[DATA_LEN+1];				// Buffer for save sending data
 
+float	fTestQ				= 1.5;		// Test flow generation value (m3/h), for working without Flowmeter
+bool	isTestFlowOn		= false;	// Test flow generation: true - ON, false - OFF
+
 bool	isSerialPrn = true;
+
 int		i, nLen;
 long	lCount = 0;
 int		nTypeSerial = 1; // 0 - hardware, 1 - software
@@ -230,8 +234,9 @@ void loop()
 	// Counter of loops
 	lCount++;
 
-	// Generate test flow
-	for( int i=0; i++ < 12; ISR_InputPulseAntOFF());
+	// Generate test flow if need
+	if (isTestFlowOn)
+		for( int i=0; i++ < int((fTestQ * lLoopMSFreq) / 3.6); ISR_InputPulseAntOFF());
 		
 	// Blink LED and debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
