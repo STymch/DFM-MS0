@@ -37,12 +37,13 @@ class CMSExtButton
 			m_nExtButtonPressWidth	= nPressWidth;
 			m_nExtButtonIntMode		= nINT_MODE;
 
-
 			// Define pin mode
 			pinMode(m_nINP_EXT_BUTTON_PIN, INPUT);
 
 			// Set ISR callback function
-			attachInterrupt(digitalPinToInterrupt(m_nExtButtonIntMode), ISR, m_nExtButtonIntMode);
+			attachInterrupt(digitalPinToInterrupt(m_nINP_EXT_BUTTON_PIN), ISR, m_nExtButtonIntMode);
+			
+			SetTStartPress(millis());
 		}
 	
 		~CMSExtButton() { }

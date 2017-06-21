@@ -72,8 +72,8 @@ int		nALM_FQLWidth		= 500;		// Width in millisec of EMFM ALARM FQL signal
 int		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
 void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
 bool	isAntiTinklingOn	= false;	// Antitinkling flag for EMFM output pulse: true - ON, false - OFF
-int		nExtButtonPressWidth= 100;		// Width in millisec of external button press
-int		nEXT_BUTTON_INT_MODE= CHANGE;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
+int		nExtButtonPressWidth= 10;		// Width in millisec of external button press
+int		nEXT_BUTTON_INT_MODE= FALLING;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
 
 bool	isMeasuring			= false;	// Measuring state flag: true - Test is ON, false - Test is OFF
 
@@ -108,9 +108,8 @@ CTemperatureSensor	*pTemperatureSensor;
 // --==-- External button of DFM-MS object
 CMSExtButton		*pMSExtButton;
 
-// --==-- LED objects
-CLED				*pLED2Loop,		// LED in mail loop
-					*pLED2ExtButton;// LED for press button
+// --==-- LED object
+CLED				*pLED;
 
 
 byte	bStatus = 0;
@@ -193,11 +192,8 @@ void setup()
 	// Set initial U battery
 	pDataMS->SetPowerU(nU);
 
-	// --==-- LED in mail loop
-	pLED2Loop = new CLED(LED_PIN, nLEDStateInit);
-
-	// --==--  LED for press button
-	pLED2ExtButton = new CLED(LED_PIN, nLEDStateInit);
+	// --==-- LED 
+	pLED = new CLED(LED_PIN, nLEDStateInit);
 
 	// --==-- Delay before starting main loop
 	Serial.println();	Serial.print("--==-- DFM-MS: Starting main loop after 5 sec ...");
@@ -228,18 +224,8 @@ void loop()
 	pEMFM->CalculateQ();
 	interrupts();
 
-/*
-	// Calculate current and moving average of flow Q: method 2
-	if (lCount % (TIME_INT4Q / DELAY_LOOP_MS) == 0)
-	{
-		noInterrupts();
-		pEMFM->CalculateQ(TIME_INT4Q);
-		interrupts();
-	}
-*/
 	// Set moving average of Q into data packet
 	pDataMS->SetQ(pEMFM->GetQMA());
-//	pDataMS->SetQ(pEMFM->GetQCurr());
 
 	// Counter of loops
 	lCount++;
@@ -251,10 +237,11 @@ void loop()
 	if (lCount % 10 == 0 && isSerialPrn)
 	{
 		// Blink LED 
-		pLED2Loop->Blink();
-
+		pLED->Blink();
+		
 /*		// Print data
 		Serial.println();		Serial.print(""); Serial.print(lCount);
+		Serial.print("\tSt=0x");Serial.print(pDataMS->GetStatus(), HEX);
 		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
 		Serial.print("\tCC=");	Serial.print(pEMFM->GetCountCurr(), 10);
 		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
@@ -347,18 +334,18 @@ void ISR_InputPulseAntON()
 ///////////////////////////////////////////////////////////////
 void ISR_ExtButtonPressAntON()
 {
-	// Read press button pin state - is pin state is front?
-	if (pMSExtButton->isPressFront())			// button press begin
-		pMSExtButton->SetTStartPress(millis()); // save time of button press begin
-	else	// button press end, check correct width of button press 
-		if (pMSExtButton->isPress(millis())) // button press correct
-		{
-			// Blink LED 
-			pLED2ExtButton->Blink();
-			
-			// Reverse star-stop bit in status byte of DFM-MS
-			pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
-		}
+	// Button press: check time between previous button press 
+	if (pMSExtButton->isPress(millis())) // button press correct
+	{
+		// Blink LED 
+		pLED->Blink();
+
+		// Reverse star-stop bit in status byte of DFM-MS
+		pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
+		
+		// Save new time of button press
+		pMSExtButton->SetTStartPress(millis());
+	}
 }
 
 ///////////////////////////////////////////////////////////////
@@ -371,9 +358,9 @@ void BTSerialReadCmnd()
 
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
-//		Serial.println();
-//		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
-//		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
+		Serial.println();
+		Serial.print(" Cmnd=");	Serial.print(pCmndMS->GetCode());
+		Serial.print("\tArg=");	Serial.print(pCmndMS->GetArg_dw());
 		
 		// Analize input command
 		switch (pCmndMS->GetCode()) 
@@ -439,9 +426,9 @@ void BTSerialReadCmnd()
 					noInterrupts();
 					lLoopMSFreq = pCmndMS->GetArg_dw();
 					interrupts();
-//					Serial.print("\tPASSED");
+					Serial.print("\tPASSED");
 				}
-//				else Serial.print("\tSKIP");
+				else Serial.print("\tSKIP");
 				break;
 
 			// 161 Set number of points for calculate moving average of flow Q. Default = 10.
@@ -451,9 +438,9 @@ void BTSerialReadCmnd()
 					noInterrupts();
 					pEMFM->SetQMA_Points(nQMA_Points = pCmndMS->GetArg_n());
 					interrupts();
-//					Serial.print("\tPASSED");
+					Serial.print("\tPASSED");
 				}
-//				else Serial.print("\tSKIP");
+				else Serial.print("\tSKIP");
 				break;
 
 			// 162 Set interval for calculate instant flow Q, millis. Default = 500.
@@ -463,9 +450,9 @@ void BTSerialReadCmnd()
 					noInterrupts();
 					pEMFM->SetInt4CalcQ(lInt4CalcQ = pCmndMS->GetArg_dw());
 					interrupts();
-//					Serial.print("\tPASSED");
+					Serial.print("\tPASSED");
 				}
-//				else Serial.print("\tSKIP");
+				else Serial.print("\tSKIP");
 				break;
 
 			// 163 Set width in millisec of external button press. Default = 100.
@@ -475,9 +462,9 @@ void BTSerialReadCmnd()
 					noInterrupts();
 					pMSExtButton->SetExtButtonPressWidth(nExtButtonPressWidth = pCmndMS->GetArg_n());
 					interrupts();
-//					Serial.print("\tPASSED");
+					Serial.print("\tPASSED");
 				}
-//				else Serial.print("\tSKIP");
+				else Serial.print("\tSKIP");
 				break;
 
 			// 164 Set antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
@@ -516,6 +503,6 @@ void BTSerialReadCmnd()
 		}
 	}
 	else if (nErrCode != -1) {
-//		Serial.print(" Err=");	Serial.print(nErrCode);
+		Serial.print(" Err=");	Serial.print(nErrCode);
 	}
 }
