@@ -60,6 +60,12 @@ const long	COM_READ_TIMEOUT= 10;		// Timeout for serial port data read, millis
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR	= 1000;		// Quantity pulse in 1 ltr
 
+// Test flow value (m3/h), for working without Flowmeter
+const float Q3 = 1.537;
+const float Q2 = 0.067;
+const float Q1 = 0.042;
+
+
 // Global variables
 DWORD	lLoopMSFreq			= 200;		// DFM-MS main loop frequancy, millis
 DWORD	lDelayTemprSensor	= 1000;		// Wait for measuring water temperature, millis
@@ -81,8 +87,8 @@ int		nLEDStateInit		= LOW;		// Init LED state
 
 byte	pBuff[DATA_LEN+1];				// Buffer for save sending data
 
-float	fTestQ				= 1.5;		// Test flow generation value (m3/h), for working without Flowmeter
-bool	isTestFlowOn		= false;	// Test flow generation: true - ON, false - OFF
+float	fTestQ				= Q3;		// Test flow generation value (m3/h), for working without Flowmeter
+bool	isTestFlowOn		= true;		// Test flow generation: true - ON, false - OFF
 
 bool	isSerialPrn = true;
 
@@ -114,7 +120,6 @@ CMSExtButton		*pMSExtButton;
 
 // --==-- LED object
 CLED				*pLED;
-
 
 byte	bStatus = 0;
 FLOAT	fTAir, fRHumidityAir, fTWater, fQ = 0.0;
@@ -172,6 +177,8 @@ void setup()
 	else {
 		Serial.println();	Serial.print("--==-- DFM-MS: RHT Sensor (HTU21D, SHT21 or Si70xx) Error = "); Serial.print(rc);
 	}	
+	rc = 0; fTAir = random(5, 40); fRHumidityAir = random(30, 80);
+
 	pDataMS->SetRHTSensorError( !rc ? 0 : 1 );			// set status bit RHT sensor
 	pDataMS->SetEndBatteryRHTSensor(rc == 1 ? 1 : 0);	// set status bit end of battery RHT sensor
 	pDataMS->SetTemprAir(fTAir);						// set temperature of air
@@ -227,24 +234,28 @@ void loop()
 	noInterrupts();
 	pEMFM->CalculateQ();
 	interrupts();
-
+	
+	// Generate test flow if need
+//	if (isTestFlowOn)
+//		for (int i = 0; i++ < int((fTestQ * lLoopMSFreq) / 3.6); ISR_InputPulseAntOFF());
+	
 	// Set moving average of Q into data packet
-	pDataMS->SetQ(pEMFM->GetQMA());
+	if (!isTestFlowOn)	pDataMS->SetQ(pEMFM->GetQMA());
+	else {
+		
+		pDataMS->SetQ(fTestQ);			// Generate test flow if need
+	}
 
 	// Counter of loops
 	lCount++;
 
-	// Generate test flow if need
-	if (isTestFlowOn)
-		for( int i=0; i++ < int((fTestQ * lLoopMSFreq) / 3.6); ISR_InputPulseAntOFF());
-		
 	// Blink LED and debug print to serial port console
 	if (lCount % 10 == 0 && isSerialPrn)
 	{
 		// Blink LED 
 		pLED->Blink();
 		
-/*		// Print data
+		// Print data
 		Serial.println();		Serial.print(""); Serial.print(lCount);
 		Serial.print("\tSt=0x");Serial.print(pDataMS->GetStatus(), HEX);
 		Serial.print("\tCF=");	Serial.print(pEMFM->GetCountFull(), 10);
@@ -252,8 +263,10 @@ void loop()
 		//Serial.print("\tCB=");	Serial.print(dwCountBadPulse);
 		Serial.print("\tQ=");	Serial.print(pEMFM->GetQCurr(), 3);
 		Serial.print("\tQMA=");	Serial.print(pEMFM->GetQMA(), 3);
+		if (isTestFlowOn)	
+		{ Serial.print("\tQTest=");	Serial.print(fTestQ, 3); }
 		Serial.print("\tU=");	Serial.print(pDataMS->GetPowerU());
-*/
+
 		}
 
 	// Loop time interval
@@ -398,8 +411,11 @@ void BTSerialReadCmnd()
 			case cmndReadTemprWater:
 				if (!isMeasuring) {
 					// Read temperature and save in data packet
-					pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
+					//pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
+					fTWater = random(1, 31);
+					//fTWater = random(31, 50);
 					pDataMS->SetTemprWater(fTWater);
+					Serial.print("\tTW="); Serial.print(fTWater, 3);
 //					Serial.print("\tPASSED");				
 				}
 //				else Serial.print("\tSKIP");
@@ -409,11 +425,14 @@ void BTSerialReadCmnd()
 			case cmndReadRHT:
 				if (!isMeasuring) {
 					// Read humidity and temperature from RHT sensor and save in data packet
-					rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+					//rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+					rc = 0; fTAir = random(5, 40); fRHumidityAir = random(30, 80);
 					pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
 					pDataMS->SetEndBatteryRHTSensor(rc == 1 ? 1 : 0);	// set status bit end of battery RHT sensor
 					pDataMS->SetTemprAir(fTAir);
 					pDataMS->SetRHumidityAir(fRHumidityAir);
+					Serial.print("\tTA="); Serial.print(fTAir, 3);
+					Serial.print("\tRH"); Serial.print(fRHumidityAir, 3);
 //					Serial.print("\tPASSED");
 				}
 //				else Serial.print("\tSKIP");
