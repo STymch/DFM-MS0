@@ -31,14 +31,14 @@ protected:
 				BYTE	m_bStatus;			// Status bits									1
 				struct
 				{
-					int	m_btReceiveDataError	: 1;// 0 - not used
-					int	m_btTempSensorError		: 1;// 1 - temperature sensor alarm
-					int m_btEMFM_FQH			: 1;// 2 - flow high limit alarm
-					int m_btEMFM_FQL			: 1;// 3 - flow low limit alarm
-					int	m_btLowBatteryPower		: 1;// 4 - not used
-					int	m_btRHTSensorError		: 1;// 5 - RHT sensor alarm
-					int m_btEndBatteryRHTSensor	: 1;// 6 - end of battery RHT Sensor: VDD < 2.25V
-					int m_btStartStopExt		: 1;// 7 - start of test from ext interrupt: 1, 0 - stopped
+					int	m_btReceiveError		: 1;// 0 - receive data error
+					int	m_btRHTSensorError		: 1;// 1 - RHT sensor alarm
+					int	m_btTempSensorError		: 1;// 2 - temperature sensor alarm
+					int m_btEMFM_FQH			: 1;// 3 - flow high limit alarm
+					int m_btEMFM_FQL			: 1;// 4 - flow low limit alarm
+					int m_btStartStopExt		: 1;// 5 - start of test from ext interrupt: 1, 0 - stopped
+					int	m_bNU1					: 1;// 6 - not used
+					int m_bNU2					: 1;// 7 - not used
 				};
 			};
 			FLOAT	m_fTemprAir;			// Temperature of air, C							4
@@ -83,23 +83,22 @@ public:
 	void	SetCountCurr(DWORD dwC)		{ m_dwCountCurr = dwC;	}
 
 	// Set status bits
-	void	SetStatus(BYTE bStatus)			{ m_bStatus = bStatus;				}
-	void	SetTempSensorError(int bit)		{ m_btTempSensorError = bit;		}
-	void	SetEMFM_FQH(int bit)			{ m_btEMFM_FQH = bit;				}
-	void	SetEMFM_FQL(int bit)			{ m_btEMFM_FQL = bit;				}
-	void	SetRHTSensorError(int bit)		{ m_btRHTSensorError = bit;			}
-	void	SetEndBatteryRHTSensor(int bit) { m_btEndBatteryRHTSensor = bit;	}
-	void	SetStartStopExt(int bit)		{ m_btStartStopExt = bit;			}
+	void	SetStatus(BYTE bStatus)		{ m_bStatus = bStatus;			}
+	void	SetReceiveError(int bit)	{ m_btReceiveError = bit;		}
+	void	SetRHTSensorError(int bit)	{ m_btRHTSensorError = bit;		}
+	void	SetTempSensorError(int bit)	{ m_btTempSensorError = bit;	}
+	void	SetEMFM_FQH(int bit)		{ m_btEMFM_FQH = bit;			}
+	void	SetEMFM_FQL(int bit)		{ m_btEMFM_FQL = bit;			}
+	void	SetStartStopExt(int bit)	{ m_btStartStopExt = bit;		}
 
 	// Get status bits
-	BYTE	GetStatus()				{ return m_bStatus;					}
-	int		GetTempSensorError()	{ return m_btTempSensorError;		}
-	int		GetEMFM_FQH()			{ return m_btEMFM_FQH;				}
-	int		GetEMFM_FQL()			{ return m_btEMFM_FQL;				}
-	int		GetRHTSensorError()		{ return m_btRHTSensorError;		}
-	int		GetEndBatteryRHTSensor(){ return m_btEndBatteryRHTSensor;	}
-	int		GetStartStopExt()		{ return m_btStartStopExt;			}
-
+	BYTE	GetStatus()					{ return m_bStatus;				}
+	int		GetReceiveError()			{ return m_btReceiveError;		}
+	int		GetRHTSensorError()			{ return m_btRHTSensorError;	}
+	int		GetTempSensorError()		{ return m_btTempSensorError;	}
+	int		GetEMFM_FQH()				{ return m_btEMFM_FQH;			}
+	int		GetEMFM_FQL()				{ return m_btEMFM_FQL;			}
+	int		GetStartStopExt()			{ return m_btStartStopExt;		}
 };
 
 ///////////////////////////////////////////////////////
@@ -108,13 +107,14 @@ public:
 const INT		CMND_LEN = 5;				// Max size of command in bytes
 // Command codes
 enum Cmnd	{	// DFM_MS control commands
-				cmndPowerOff		= 0x50,	// Execte DFM-MS Power OFF
 				cmndSetCount		= 0x43,	// DWORD. Set current counter, if 0 - be set in DWORD(-1)
-				cmndReadRHT			= 0x48,	// Read compensated humidity and temperature of air from sensor			
+				cmndReadRHT			= 0x48,	// Read humidity and temperature of air from sensor			
+				cmndPowerOff		= 0x50,	// Execute DFM-MS Power OFF
+				cmndTestReceive		= 0x52,	// Test receive data from CP to MS
 				cmndReadTemprWater	= 0x54,	// Read water temperature from sensor
 				
 				// Set parameters value commands
-				cmndSetLoopMSFreq		= 0xA0,	// DWORD. Set DFM-MS main loop frequancy, millis. Default = 200.
+				cmndSetLoopMSPeriod		= 0xA0,	// DWORD. Set DFM-MS main loop frequancy, millis. Default = 200.
 				cmndSetQMA_Points		= 0xA1,	// UINT. Set number of points for calculate moving average of flow Q. Default = 10.
 				cmndSetInt4CalcQ		= 0xA2,	// DWORD. Interval for calculate instant flow Q, millis. Default = 500.
 				cmndSetButtonPressWidth = 0xA3,	// UINT. Width in millisec of external button press. Default = 100.

@@ -1,152 +1,80 @@
 /*
- Name:		HTU21D.ino
- Created:	5/11/2017 6:55:15 PM
- Author:	Sergiy Tymchenko
+HTU21D Humidity Sensor Example Code
+By: Nathan Seidle
+SparkFun Electronics
+Date: September 15th, 2013
+License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
+
+This example demonstrates how to read the user registers to display resolution and other settings.
+
+Uses the HTU21D library to display the current humidity and temperature
+
+Open serial monitor at 9600 baud to see readings. Errors 998 if not sensor is detected. Error 999 if CRC is bad.
+
+Hardware Connections (Breakoutboard to Arduino):
+-VCC = 3.3V
+-GND = GND
+-SDA = A4 (use inline 330 ohm resistor if your board is 5V)
+-SCL = A5 (use inline 330 ohm resistor if your board is 5V)
+
 */
 
-/**************************************************************************/
-/*
-This is an Arduino example for SHT21, HTU21D Digital Humidity & Temperature
-Sensor
-
-Written by enjoyneering79
-
-These sensor uses I2C to communicate. Two pins are required to interface
-
-Connect HTU21D to pins:  SDA  SCL
-Uno, Mini, Pro:          A4      A5
-Mega2560, Due:           20      21
-Leonardo:                2       3
-Atiny85:                 0/PWM   2/A1   (TinyWireM)
-NodeMCU 1.0:             D1/ANY  D2/ANY (D1 & D2 by default)
-ESP8266 ESP-01:          ANY     ANY
-
-BSD license, all text above must be included in any redistribution
-*/
-/**************************************************************************/
-
-#if defined (__AVR_ATtiny25__) || defined(__AVR_ATtiny26__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny45__) || (__AVR_ATtiny84__) || defined(__AVR_ATtiny85__)
-#include <TinyWireM.h>
-#define Wire TinyWireM
-#else defined
 #include <Wire.h>
-#endif
+#include "SparkFunHTU21D.h"
 
-#include <HTU21D.h>
+//Create an instance of the object
+HTU21D myHumidity;
 
-/*
-HTU21D(resolution)
+void show_yes_no(const char *prefix, int val)
+{
+	Serial.print(prefix);
+	if (val)
+		Serial.println("yes");
+	else
+		Serial.println("no");
+}
 
-resolution:
-HTU21D_RES_RH12_TEMP14 - RH: 12Bit. Temperature: 14Bit.
-HTU21D_RES_RH8_TEMP12  - RH: 8Bit.  Temperature: 12Bit.
-HTU21D_RES_RH10_TEMP13 - RH: 10Bit. Temperature: 13Bit.
-HTU21D_RES_RH11_TEMP11 - RH: 11Bit. Temperature: 11Bit.
+void dump_user_register()
+{
+	byte reg = myHumidity.readUserRegister();
 
+	Serial.print("Resolution (Humidity, Temperature): ");
+	switch (reg & USER_REGISTER_RESOLUTION_MASK) {
+	case USER_REGISTER_RESOLUTION_RH12_TEMP14: Serial.print(12); Serial.print(", "); Serial.println(14); break;
+	case USER_REGISTER_RESOLUTION_RH8_TEMP12: Serial.print(8); Serial.print(", "); Serial.println(12); break;
+	case USER_REGISTER_RESOLUTION_RH10_TEMP13: Serial.print(10); Serial.print(", "); Serial.println(13); break;
+	case USER_REGISTER_RESOLUTION_RH11_TEMP11: Serial.print(11); Serial.print(", "); Serial.println(11); break;
+	}
 
-DEFAULT
-HTU21D(HTU21D_RES_RH12_TEMP14)
-*/
-
-HTU21D myHTU21D;
+	show_yes_no("End of battery: ", reg & USER_REGISTER_END_OF_BATTERY);
+	show_yes_no("Heater enabled: ", reg & USER_REGISTER_HEATER_ENABLED);
+	show_yes_no("Disable OTP reload: ", reg & USER_REGISTER_DISABLE_OTP_RELOAD);
+}
 
 void setup()
 {
 	Serial.begin(38400);
-	Serial.println(F(""));
+	Serial.println("HTU21D Example!");
 
-#if defined(ARDUINO_ARCH_ESP8266) || (ESP8266_NODEMCU)
-	while (myHTU21D.begin(D1, D2) != true)
-#else
-	while (myHTU21D.begin() != true)
-#endif
-	{
-		Serial.println(F("HTU21D, SHT21 or Si70xx sensor is not present..."));
-		delay(5000);
-	}
+	myHumidity.begin();
 
-	Serial.println(F("HTU21D, SHT21 or Si70xx sensor is present"));
+	dump_user_register();
 }
 
 void loop()
 {
-	Serial.println(F("..."));
-	Serial.println(F("<< RHTSensor DEMO: %RH - 12Bit, Temperature - 14Bit (default settings) >>"));
-	Serial.print(F("Humidity: "));
-	Serial.print(myHTU21D.readHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" +-0.5deg.C"));
+	float humd = myHumidity.readHumidity();
+	float temp = myHumidity.readTemperature();
 
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: %RH - 11Bit, Temperature - 11Bit >>"));
-	myHTU21D.setResolution(HTU21D_RES_RH11_TEMP11);
-	Serial.print(F("Humidity: "));
-	Serial.print(myHTU21D.readHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" +-0.5deg.C"));
+	Serial.print("Time:");
+	Serial.print(millis());
+	Serial.print(" Temperature:");
+	Serial.print(temp, 1);
+	Serial.print("C");
+	Serial.print(" Humidity:");
+	Serial.print(humd, 1);
+	Serial.print("%");
 
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Battery Status >>"));
-	if (myHTU21D.batteryStatus() == true)
-	{
-		Serial.println(F("Battery OK. Level > 2.25v"));
-	}
-	else
-	{
-		Serial.println(F("Battery LOW. Level < 2.25v"));
-	}
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Fimware version >>"));
-	Serial.print(F("FW version: "));
-	Serial.println(myHTU21D.readFirmwareVersion());
-
-	Serial.println(F("..."));
-	Serial.println(F("<< DEMO: Device ID >>"));
-	Serial.print(F("Sensor's name: "));
-	Serial.println(myHTU21D.readDeviceID());
-
-
-	/* UNCOMENT FOR OF SENSOR'S HEATER DIAGNOSTIC.
-	Serial.println(F("!!!"));
-	Serial.println(F("<< DEMO: built-in Heater test >>"));
-	Serial.println(F(""));
-	Serial.println(F("Built-in Heater - ON (+ 2sec. delay to warm up the sensor)"));
-	myHTU21D.setHeater(HTU21D_ON);
-	delay(2000);
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" +-0.5deg.C"));
-
-	Serial.println(F("!!!"));
-	Serial.println(F("Built-in Heater - OFF (+ 8sec. delay to cool down the sensor)"));
-	myHTU21D.setHeater(HTU21D_OFF);
-	delay(8000);
-	Serial.println(F(""));
-	Serial.print(F("Compensated Humidity: "));
-	Serial.print(myHTU21D.readCompensatedHumidity());
-	Serial.println(F(" +-2%RH"));
-
-	Serial.println(F(""));
-	Serial.print(F("Temperature: "));
-	Serial.print(myHTU21D.readTemperature());
-	Serial.println(F(" -+0.5deg.C"));
-	*/
-
-	Serial.println(F(""));
-	Serial.print(F("DEMO: Starts over again in 8 sec."));
-	delay(8000);
+	Serial.println();
+	delay(1000);
 }

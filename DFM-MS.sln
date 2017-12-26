@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.12
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SoftwareSerialExample", "SoftwareSerialExample\SoftwareSerialExample.vcxproj", "{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}"
 EndProject
@@ -17,11 +17,17 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConsoleApplication1", "Cons
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DFM-MS", "DFM-MS\DFM-MS.vcxproj", "{5530B19C-EDF4-49BA-AF65-910025372CAD}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnalogInputPin", "AnalogInputPin\AnalogInputPin.vcxproj", "{A3DA9509-F296-431D-B0CA-0C3215723B19}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PowerInput", "AnalogInputPin\AnalogInputPin.vcxproj", "{A3DA9509-F296-431D-B0CA-0C3215723B19}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HTU21D", "HTU21D\HTU21D.vcxproj", "{5C27B627-F048-4628-AB26-BB51F9038DD1}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SoftwareSerial", "SoftwareSerial\SoftwareSerial.vcxproj", "{448843BD-0261-4BD7-B193-3D0B46795B31}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DallasTemperature", "DallasTemperature\DallasTemperature.vcxproj", "{62456661-87E5-494D-9414-CD85E18FCD33}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DHTtester", "..\..\..\Cloud\OneDrive\Work\Arduino\My Examples\131580866154927278\DHTtester\DHTtester.vcxproj", "{AD5E833F-A750-4723-9F53-AB47A27E37A6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DHT_Unified_Sensor", "..\..\..\Cloud\OneDrive\Work\Arduino\My Examples\131582646640952529\DHT_Unified_Sensor\DHT_Unified_Sensor.vcxproj", "{95A0A2FB-A892-48ED-81F2-C02DDECA9399}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -87,6 +93,24 @@ Global
 		{448843BD-0261-4BD7-B193-3D0B46795B31}.Release|x64.ActiveCfg = Release|Win32
 		{448843BD-0261-4BD7-B193-3D0B46795B31}.Release|x86.ActiveCfg = Release|Win32
 		{448843BD-0261-4BD7-B193-3D0B46795B31}.Release|x86.Build.0 = Release|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Debug|x64.ActiveCfg = Debug|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Debug|x86.ActiveCfg = Debug|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Debug|x86.Build.0 = Debug|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Release|x64.ActiveCfg = Release|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Release|x86.ActiveCfg = Release|Win32
+		{62456661-87E5-494D-9414-CD85E18FCD33}.Release|x86.Build.0 = Release|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Debug|x64.ActiveCfg = Debug|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Debug|x86.ActiveCfg = Debug|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Debug|x86.Build.0 = Debug|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Release|x64.ActiveCfg = Release|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Release|x86.ActiveCfg = Release|Win32
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6}.Release|x86.Build.0 = Release|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Debug|x64.ActiveCfg = Debug|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Debug|x86.ActiveCfg = Debug|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Debug|x86.Build.0 = Debug|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Release|x64.ActiveCfg = Release|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Release|x86.ActiveCfg = Release|Win32
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -100,5 +124,11 @@ Global
 		{A3DA9509-F296-431D-B0CA-0C3215723B19} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
 		{5C27B627-F048-4628-AB26-BB51F9038DD1} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
 		{448843BD-0261-4BD7-B193-3D0B46795B31} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{62456661-87E5-494D-9414-CD85E18FCD33} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{AD5E833F-A750-4723-9F53-AB47A27E37A6} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{95A0A2FB-A892-48ED-81F2-C02DDECA9399} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B7BAF632-EF3E-4027-994D-82B2B3E3CCD8}
 	EndGlobalSection
 EndGlobal

@@ -1,5 +1,5 @@
 // CommDef.h
-// Contents : îáùåóïîòðåáèòåëüíûå ìàêðîñû è òèïû äàííûõ
+// Contents : Ð¾Ð±Ñ‰ÐµÑƒÐ¿Ð¾Ñ‚Ñ€ÐµÐ±Ð¸Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ðµ Ð¼Ð°ÐºÑ€Ð¾ÑÑ‹ Ð¸ Ñ‚Ð¸Ð¿Ñ‹ Ð´Ð°Ð½Ð½Ñ‹Ñ…
 
 #ifndef _COMMDEF_h
 #define _COMMDEF_h
@@ -10,9 +10,20 @@
 	#include "WProgram.h"
 #endif
 
-// Âûäà÷à îòëàäî÷íûõ ñîîáùåíèé â àïïàðàòíûé COM-ïîðò Arduino
-#ifndef _DEBUG_TRACE
+// Enable printing out nice debug messages, comment macros for disable debug messages
 #define _DEBUG_TRACE
+// Define where debug output will be printed
+#define DEBUG_PRN_DEVICE	Serial
+
+// Setup debug printing macros
+#ifdef _DEBUG_TRACE
+#define DBG_PRN(...)		{ DEBUG_PRN_DEVICE.print(__VA_ARGS__);		}
+#define DBG_PRNL(...)		{ DEBUG_PRN_DEVICE.println(__VA_ARGS__);	}
+#define DBG_PRN_LOGO(a,b)	{ DBG_PRNL(); DBG_PRN(a); DBG_PRN(b);		}
+#else
+#define DBG_PRN(...)		{}
+#define DBG_PRNL(...)		{}
+#define DBG_PRN_LOGO(a,b)	{}
 #endif
 
 // --- TRUE, FALSE
@@ -23,7 +34,7 @@
 #define TRUE  1
 #endif
 
-// --- ÒÈÏÛ ÄÀÍÍÛÕ
+// --- Ð¢Ð˜ÐŸÐ« Ð”ÐÐÐÐ«Ð¥
 typedef		unsigned			char	BYTE;	// 1 byte
 typedef		unsigned			short	WORD;	// 2 byte
 typedef		unsigned			int		UINT;	// 2 byte
@@ -32,14 +43,14 @@ typedef		unsigned			long	DWORD;	// 4 byte
 typedef							float	FLOAT;	// 4 byte
 typedef		unsigned	long	long	QWORD;	// 8 byte
 
-// --- ÌÀÊÐÎÑÛ
-// - ñðàâíåíèå ÷èñëîâûõ âåëè÷èí
+// --- ÐœÐÐšÐ ÐžÐ¡Ð«
+// - ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ðµ Ñ‡Ð¸ÑÐ»Ð¾Ð²Ñ‹Ñ… Ð²ÐµÐ»Ð¸Ñ‡Ð¸Ð½
 #define Greater(a, b)      ( ( (a) - (b) ) >  0 ) 
 #define GreaterEqual(a, b) ( ( (a) - (b) ) >= 0 )
 #define Less(a, b)         ( ( (a) - (b) ) <  0 )
 #define LessEqual(a, b)    ( ( (a) - (b) ) <= 0 )
 
-// - ìàíèïóëÿöèè áàéòàìè, ñëîâàìè, äâîéíûìè ñëîâàìè
+// - Ð¼Ð°Ð½Ð¸Ð¿ÑƒÐ»ÑÑ†Ð¸Ð¸ Ð±Ð°Ð¹Ñ‚Ð°Ð¼Ð¸, ÑÐ»Ð¾Ð²Ð°Ð¼Ð¸, Ð´Ð²Ð¾Ð¹Ð½Ñ‹Ð¼Ð¸ ÑÐ»Ð¾Ð²Ð°Ð¼Ð¸
 #ifndef LOBYTE
 #define LOBYTE(w )     ( (BYTE)(w) )
 #endif
@@ -56,7 +67,7 @@ typedef		unsigned	long	long	QWORD;	// 8 byte
 #define MKWORD(bh,bl)  ( (WORD) (((BYTE)(bl)) | (((WORD) ((BYTE)(bh)))<<8 )) )
 #define MKDWORD(wh,wl) ( (DWORD)(((WORD)(wl)) | (((DWORD)((WORD)(wh)))<<16)) )
 
-// - ñïåöèàëüíàÿ ìàíèïóëÿöèÿ áèòàìè â BYTE
+// - ÑÐ¿ÐµÑ†Ð¸Ð°Ð»ÑŒÐ½Ð°Ñ Ð¼Ð°Ð½Ð¸Ð¿ÑƒÐ»ÑÑ†Ð¸Ñ Ð±Ð¸Ñ‚Ð°Ð¼Ð¸ Ð² BYTE
 #define READBIT(B,n)	( ( ((BYTE)(B)) & (1<<(n)) ) >> (n) )				/* read bit number n from byte */
 #define WRITEBIT(B,n,b) ( (b) ? ( (B)|=(1<<(n)) ):( (B)&=(~(1<<(n))) ) )	/* write bit number n into byte */
 #define SETBIT(B,n)		( (B)|=(1<<(n)) ) 									/* write 1 into bit number n into byte */

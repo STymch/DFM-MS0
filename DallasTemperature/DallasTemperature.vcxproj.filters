@@ -15,16 +15,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="__vm\.AnalogInputPin.vsarduino.h">
+    <None Include="DallasTemperature.ino" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="__vm\.DallasTemperature.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="PowerInput.ino" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="CPowerDC.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

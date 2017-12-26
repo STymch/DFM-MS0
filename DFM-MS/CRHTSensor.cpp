@@ -1,53 +1,53 @@
 #include "CRHTSensor.h"
 
-// Detect RHT sensor
-// Return:	0 - sensor OK, -1 - no sensor, 1 - Battery LOW, Level < 2.25v
-int CRHTSensor::Detect()
-{
-	int		retcode = -1;
-
-	// Check sensor present
-#if defined(ARDUINO_ARCH_ESP8266) || (ESP8266_NODEMCU)
-	if (m_pHTU21D->begin(D1, D2) == true)	// Sensor present
-#else
-	if (m_pHTU21D->begin() == true)			// Sensor present
-#endif
-	{	
-		retcode = 0;
-
-		// Check Battery Status
-		if (m_pHTU21D->batteryStatus() != true)
-			retcode = 1;	// Battery LOW, Level < 2.25v
-
-		// Fimware version
-		m_nFirmwareVersion = m_pHTU21D->readFirmwareVersion();
-		// Sensor's name
-		m_nSensorID = m_pHTU21D->readDeviceID();
-	}
-
-	return retcode;
-}
-
-// Get RH and temperature from sensor
-// Return:	0 - sensor OK, -1 - no sensor, 1 - Battery LOW, Level < 2.25v
+// Get RH and temperature from all sensors
+// Return:	0 - OK, -1 - sensor error
 int	CRHTSensor::GetRHT(float& fHumidity, float& fTemperature)
 {
-	int rc;
-	fTemperature = fHumidity = -1.0;
+	int rc = 0;		// OK
+					
+	// No sensor detected
+	m_nSensorModel = -1;
 	
-	// Detect RHT sensor
-	if ( !(rc = Detect()) ) {
-		// Set resolution
-		m_pHTU21D->setResolution(HTU21D_RES_RH11_TEMP11);
+	// Get RH and temperature from HTU21D sensor
+	// Read Air Humidity
+	fHumidity = m_pHTU->readHumidity();
+	if (fHumidity == ERROR_I2C_TIMEOUT || fHumidity == ERROR_BAD_CRC)
+	{
+		rc = -1; fHumidity = -1.0;
+	}
 
-		// Read Compensated Humidity
-		fHumidity = m_pHTU21D->readCompensatedHumidity();
+	// Read Air Temperature
+	fTemperature = m_pHTU->readTemperature();
+	if (fTemperature == ERROR_I2C_TIMEOUT || fTemperature == ERROR_BAD_CRC)
+	{
+		rc = -1; fTemperature = -1.0;
+	}
 
-		// Read Temperature
-		fTemperature = m_pHTU21D->readTemperature();
+	// Detect Model of sensor HTU21D
+	if (!rc) m_nSensorModel = 0;
+	// Get RH and temperature from DHTxx sensor
+	else
+	{
+		rc = 0;
+
+		// Read Air Humidity
+		fHumidity = m_pDHT->readHumidity();
+		if (isnan(fHumidity))
+		{
+			rc = -1; fHumidity = -1.0;
+		}
+
+		// Read Air Temperature
+		fTemperature = m_pDHT->readTemperature();
+		if (isnan(fTemperature))
+		{
+			rc = -1; fTemperature = -1.0;
+		}
+
+		// Detect Model of sensor DHTxx
+		if (!rc) m_nSensorModel = 1;
 	}
 	
 	return rc;
 }
-
-

@@ -76,6 +76,6 @@ typedef void *__builtin_va_list;
 #define pgm_read_float(address_short) float()
 #define pgm_read_ptr(address_short)   short()
 
-#include "HTU21D.ino"
+#include "DallasTemperature.ino"
 #endif
 #endif
