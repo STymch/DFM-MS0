@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A3DA9509-F296-431D-B0CA-0C3215723B19}</ProjectGuid>
+    <ProjectGuid>{1544A09C-20E2-4626-AA41-A084B1191600}</ProjectGuid>
     <RootNamespace>AnalogInputPin</RootNamespace>
     <ProjectName>PowerInput</ProjectName>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>

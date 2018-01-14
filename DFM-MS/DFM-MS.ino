@@ -105,6 +105,10 @@ long	lCount		= 0;
 int		nTypeSerial = 1; // 0 - hardware, 1 - software
 DWORD	dwTimerTick = 0;
 
+
+// For serial console (hardware COM)
+DWORD	lCurrCount, lTime;
+
 // ---===--- Global objects ---===---
 // --==-- Bluetooth serial port
 CSerialPort			*pBTSerialPort;	// For bluetooth modem 
@@ -245,6 +249,11 @@ void loop()
 
 	// Save time of begin of loop
 	lTimeBegin = millis();
+
+#ifdef _DEBUG_TRACE	
+	// Read and execute command from serial console (hardware COM)
+	::SerialReadCmnd();
+#endif	
 
 	// Read and execute command from DFM-CP BT serial port
 	::BTSerialReadCmnd();
@@ -581,3 +590,34 @@ void BTSerialReadCmnd()
 		pDataMS->SetReceiveError(1);
 	}
 }
+
+#ifdef _DEBUG_TRACE
+///////////////////////////////////////////////////////////////
+// Read command from serial console (hardware COM)
+///////////////////////////////////////////////////////////////
+void SerialReadCmnd() 
+{
+	int		nInpByte;
+
+	// Ожидание команды из последовательного порта
+	if (Serial.available() > 0)
+	{
+		DBG_PRN_LOGO(strAppName, strVerMaj);
+		DBG_PRN("PRESSED: ");
+		// считываем байт данных
+		nInpByte = Serial.read();
+		DBG_PRN(nInpByte);
+
+		// анализируем команду
+		if (nInpByte == 32) // SPACE
+		{
+			lCurrCount = pEMFM->GetCountFull();
+			DBG_PRN("\t COUNT = ");	DBG_PRN(lCurrCount, 10);
+			DBG_PRN("\t TIME = ");	DBG_PRNL(millis() - lTime);
+			
+			lCurrCount = 0;	pEMFM->SetCountFull(0);
+			lTime = millis();
+		}
+	}
+}
+#endif 
