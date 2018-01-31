@@ -58,8 +58,8 @@ const int   LED_PIN			= 13;		// LED output pin
 // Serial ports parameters
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
-const long	COM_READ_TIMEOUT= 10;		// Timeout for serial port data read, millis
-
+const long	COM_READ_TIMEOUT= 100;		// Timeout for serial port data read, millis
+	
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR	= 1000;		// Quantity pulse in 1 ltr
 const int	TEMPERATURE_PRECISION = 9;	// Temperature sensor resolution: 9-12, 9 - low 
@@ -70,9 +70,12 @@ const int	TEMPERATURE_PRECISION = 9;	// Temperature sensor resolution: 9-12, 9 -
 DWORD	lLoopMSPeriod		= 200;		// DFM-MS main loop period, millis
 DWORD	lDebugPrnPeriod		= 2000;		// LED blink and debug print period
 DWORD	lGetSensorsPeriod	= 60000;	// Get sensors of T, RHT Air period
-DWORD	lInt4CalcQ			= 500;		// Interval for calculate instant flow Q, millis
+DWORD	lInt4CalcQ			= 1000;		// Interval for calculate instant flow Q, millis
 int		nDelayAfterPowerON	= 2000;		// Wait for Power ON, millis
-DWORD	dwCountBadPulse		= 0;		// Counter bad input pulse packet (pulse front < nPulseWidth)
+
+DWORD	dwCountBadPulse		= 0;		// Counter of bad input pulse packet (pulse front < nPulseWidth)
+DWORD	dwCountReceiveErr	= 0;		// Counter of bad received packet
+
 int		nQMA_Points			= 10;		// Number of points for calculate moving average of instant flow Q
 int		nPulseWidth			= 50;		// Width in millisec of EMFM output pulse
 int		nALM_FQHWidth		= 500;		// Width in millisec of EMFM ALARM FQH signal
@@ -80,6 +83,7 @@ int		nALM_FQLWidth		= 500;		// Width in millisec of EMFM ALARM FQL signal
 int		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
 void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
 bool	isAntiTinklingOn	= false;	// Antitinkling flag for EMFM output pulse: true - ON, false - OFF
+
 int		nExtButtonPressWidth= 10;		// Width in millisec of external button press
 int		nEXT_BUTTON_INT_MODE= FALLING;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
 
@@ -149,15 +153,15 @@ void setup()
 	// --==-- Hardware serial port
 	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(": SETUP Starting ...");
+	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRNL(F(": SETUP Starting ..."));
 	
 	// --==-- Power DC Control object
 	// Create object & initialization
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(": PowerDC ON: ");
+	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": PowerDC ON: "));
 	pPowerDC = new CPowerDC(POWER_INPUT_PIN, POWER_ON_OFF_PIN, nDelayAfterPowerON);
 	// Power ON
 	pPowerDC->PowerON();
-	DBG_PRN("\t PASSED");
+	DBG_PRN(F("\t PASSED"));
 
 	// --==-- Bluetooth serial port
 	// Create object & initialization
@@ -192,18 +196,18 @@ void setup()
 	pEMFM->Init(0, DWORD(-1), lInt4CalcQ, nQMA_Points, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
 
 	// --==-- Humidity & temperature sensor
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(": RHT sensor: ");
+	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": RHT sensor: "));
 	pRHTSensor = new CRHTSensor(DHTxx_PIN, snsrDHT21);
 	// Get RH and temperature from sensor
 	if (!(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)))
 	{
-		DBG_PRN("OK");
-		DBG_PRN("\t Model: ");		DBG_PRN(pRHTSensor->GetSensorModel());
-		DBG_PRN("\t TempAir: ");	DBG_PRN(fTAir, 1);
-		DBG_PRN("\t Humidity: ");	DBG_PRNL(fRHumidityAir, 1);
+		DBG_PRN(F("OK"));
+		DBG_PRN(F("\t Model: "));		DBG_PRN(pRHTSensor->GetSensorModel());
+		DBG_PRN(F("\t TempAir: "));		DBG_PRN(fTAir, 1);
+		DBG_PRN(F("\t Humidity: "));	DBG_PRNL(fRHumidityAir, 1);
 	}
 	else {
-		DBG_PRN("NOT DETECTED! \t Model: "); DBG_PRN(pRHTSensor->GetSensorModel());
+		DBG_PRN(F("NOT DETECTED! \t Model: ")); DBG_PRN(pRHTSensor->GetSensorModel());
 	}	
 
 	pDataMS->SetRHTSensorError( !rc ? 0 : 1 );			// set status bit RHT sensor
@@ -211,17 +215,17 @@ void setup()
 	pDataMS->SetRHumidityAir(fRHumidityAir);			// set humidity
 
 	// --==-- Temperature of water sensor
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(": Temperature of water sensor: ");
+	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": Temperature of water sensor: "));
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, TEMPERATURE_PRECISION);
 	// Waiting...
 	delay(2000);
 	// Get temperature from sensor
 	if ( !(rc = pTemperatureSensor->GetTemperature(fTWater)) ) {
-		DBG_PRN("OK");
-		DBG_PRN("\t NumOfDev:");	DBG_PRN(pTemperatureSensor->GetNumberOfDevices());
-		DBG_PRN("\t Model: ");		DBG_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
-		DBG_PRN("\t PPawer: ");		DBG_PRN(pTemperatureSensor->isParasitePower());
-		DBG_PRN("\t TempWater: ");	DBG_PRNL(fTWater, 1);
+		DBG_PRN(F("OK"));
+		DBG_PRN(F("\t NumOfDev:"));		DBG_PRN(pTemperatureSensor->GetNumberOfDevices());
+		DBG_PRN(F("\t Model: "));		DBG_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
+		DBG_PRN(F("\t PPawer: "));		DBG_PRN(pTemperatureSensor->isParasitePower());
+		DBG_PRN(F("\t TempWater: "));	DBG_PRNL(fTWater, 1);
 	}
 	else	DBG_PRNL(DS_MODEL_NAME[0]);
 	
@@ -236,7 +240,7 @@ void setup()
 	pLED = new CLED(LED_PIN, nLEDStateInit);
 
 	// --==-- Delay before starting main loop
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(": MAIN Starting ...");
+	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRNL(F(": MAIN Starting ..."));
 }
 
 ///////////////////////////////////////////////////////////////
@@ -245,14 +249,30 @@ void setup()
 void loop()
 {
 	DWORD lTimeBegin, lTimeInt;
-	int rc;
-
+	
 	// Save time of begin of loop
 	lTimeBegin = millis();
+
+	// Counter of loops
+	lCount++;
 
 #ifdef _DEBUG_TRACE	
 	// Read and execute command from serial console (hardware COM)
 	::SerialReadCmnd();
+
+	// Get data from sensors T, RHT of air
+	if (lCount % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isMeasuring)
+	{
+		// Read humidity and temperature from RHT sensor and save in data packet
+		int rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+		pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
+		pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
+
+		// Read water temperature and save in data packet
+		pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
+		pDataMS->SetTemprWater(fTWater);
+	}
+
 #endif	
 
 	// Read and execute command from DFM-CP BT serial port
@@ -268,55 +288,37 @@ void loop()
 	pEMFM->CalculateQ();
 	interrupts();
 	
-	// Generate test flow if need
-//	if (isTestFlowOn)
-//		for (int i = 0; i++ < int((fTestQ * lLoopMSFreq) / 3.6); ISR_InputPulseAntOFF());
-	
 	// Set moving average of Q into data packet
 	if (!isTestFlowOn)	pDataMS->SetQ(pEMFM->GetQMA());
 	else pDataMS->SetQ(fTestQ);			// Generate test flow if need
 	
-	// Counter of loops
-	lCount++;
-	
-	// Get data from sensors T, RHT of air and Power when no measuring
-	if (lCount % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isMeasuring)
-	{
-		// Get Power DC value and save in data packet
-		pDataMS->SetPowerU(pPowerDC->GetPowerDC());
-
-		// Read humidity and temperature from RHT sensor and save in data packet
-		rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-		pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
-		pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
-
-		// Read water temperature and save in data packet
-		pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
-		pDataMS->SetTemprWater(fTWater);
-	}
-
-	// Blink LED and debug print to serial port console
+	// Blink LED, Get Power, Debug print to serial port console
 	if (lCount % (lDebugPrnPeriod / lLoopMSPeriod) == 0 && isSerialPrn)
 	{
 		// Blink LED 
 		pLED->Blink();
-
-		// Print data
-		DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(lCount);
-		DBG_PRN("\tTime=");						DBG_PRN(lTimeBegin, 10);
-		DBG_PRN("\tSt=0x");						DBG_PRN(pDataMS->GetStatus(), HEX);
-		DBG_PRN("\tCF=");						DBG_PRN(pEMFM->GetCountFull(), 10);
-		DBG_PRN("\tCC=");						DBG_PRN(pEMFM->GetCountCurr(), 10);
-
-		DBG_PRN("\tTW=");						DBG_PRN(pDataMS->GetTemprWater(), 1);
-		DBG_PRN("\tTA=");						DBG_PRN(pDataMS->GetTemprAir(), 1);
-		DBG_PRN("\tRH=");						DBG_PRN(pDataMS->GetRHumidityAir(), 1);
-
-		DBG_PRN("\tQ=");						DBG_PRN(pEMFM->GetQCurr(), 3);
-		DBG_PRN("\tQMA=");						DBG_PRN(pEMFM->GetQMA(), 3);
 		
-		if (isTestFlowOn)						{ DBG_PRN("\tQTest=");	DBG_PRN(fTestQ, 3); }
-		DBG_PRN("\tU=");						DBG_PRN(pDataMS->GetPowerU());
+		// Get Power DC value and save in data packet
+		pDataMS->SetPowerU(pPowerDC->GetPowerDC());
+		
+		// Debug Print data
+		DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(lCount);
+		DBG_PRN(F("\tTime="));					DBG_PRN(lTimeBegin, 10);
+		DBG_PRN(F("\tSt=0x"));					DBG_PRN(pDataMS->GetStatus(), HEX);
+		DBG_PRN(F("\tCF="));					DBG_PRN(pEMFM->GetCountFull(), 10);
+		DBG_PRN(F("\tCC="));					DBG_PRN(pEMFM->GetCountCurr(), 10);
+
+		DBG_PRN(F("\tTW="));					DBG_PRN(pDataMS->GetTemprWater(), 1);
+		DBG_PRN(F("\tTA="));					DBG_PRN(pDataMS->GetTemprAir(), 1);
+		DBG_PRN(F("\tRH="));					DBG_PRN(pDataMS->GetRHumidityAir(), 1);
+
+		DBG_PRN(F("\tQ="));						DBG_PRN(pEMFM->GetQCurr(), 3);
+		DBG_PRN(F("\tQMA="));					DBG_PRN(pEMFM->GetQMA(), 3);
+		
+		if (isTestFlowOn)						{ DBG_PRN(F("\tQTest="));	DBG_PRN(fTestQ, 3); }
+		DBG_PRN(F("\tU="));						DBG_PRN(pDataMS->GetPowerU());
+		
+		DBG_PRN(F("\tRecErr="));				DBG_PRN(dwCountReceiveErr, 10);
 	}
 
 	// Calculate time interval from start loop
@@ -427,8 +429,7 @@ void BTSerialReadCmnd()
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
 		DBG_PRN_LOGO(strAppName, strVerMaj);
-		DBG_PRN(": Cmnd= ");	DBG_PRN(pCmndMS->GetCode());
-		DBG_PRN("\t Arg= ");	DBG_PRN(pCmndMS->GetArg_dw());
+		DBG_PRN(F("--->>> BTSerial CMND: "));	DBG_PRN(pCmndMS->GetCode());
 		
 		// Set ReceiveError status bit to 0
 		pDataMS->SetReceiveError(0);
@@ -438,6 +439,7 @@ void BTSerialReadCmnd()
 		{
 			// 67 Set current pulse count
 			case cmndSetCount: 
+				DBG_PRN(F("\t(SetCount) : ")); DBG_PRN(pCmndMS->GetArg_dw());
 				// if 0 - set count to DWORD(-1)
 				if ((dwCountCurr = pCmndMS->GetArg_dw()) == 0)
 				{
@@ -457,99 +459,108 @@ void BTSerialReadCmnd()
 				// Save current pulse count into data packet
 				pDataMS->SetCountCurr(dwCountCurr);
 				interrupts();
-				DBG_PRN("\t PASSED");
+				DBG_PRN(F("\t PASSED"));
 				break;
 
 			// 72 Read humidity and temperature from RHT sensor
 			case cmndReadRHT:
+				DBG_PRN(F("\t(ReadRHT)"));
 				if (!isMeasuring) {
 					// Read humidity and temperature from RHT sensor and save in data packet
 					rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
 					pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
 					pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
-					DBG_PRN("\t TAir= ");	DBG_PRN(fTAir, 1);
-					DBG_PRN("\t RH= ");		DBG_PRN(fRHumidityAir, 1);
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t TAir= "));	DBG_PRN(fTAir, 1);
+					DBG_PRN(F("\t RH= "));		DBG_PRN(fRHumidityAir, 1);
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 84 Read water temperature from sensor
 			case cmndReadTemprWater:
+				DBG_PRN(F("\t(ReadTemprWater)"));
 				if (!isMeasuring) {
 					// Read temperature and save in data packet
 					pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
 					pDataMS->SetTemprWater(fTWater);
-					DBG_PRN("\t TWater= "); DBG_PRN(fTWater, 1); DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t TWater= ")); DBG_PRN(fTWater, 1); DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 
 			// 80 Turn off power
 			case cmndPowerOff:
+				DBG_PRN(F("\t(PowerOff)"));
 				// Power OFF
 				pPowerDC->PowerOFF();
-				DBG_PRN("\t PASSED");
+				DBG_PRN(F("\t PASSED"));
 				break;
 
 			// 82 Test Receive
 			case cmndTestReceive:
+				DBG_PRN(F("\t(TestReceive)"));
 				// Do nothing...
-				DBG_PRN("\t PASSED");
+				DBG_PRN(F("\t PASSED"));
 				break;
 
 
 			// 160 Set DFM-MS main loop period, millis. Default = 200.
 			case cmndSetLoopMSPeriod:
+				DBG_PRN(F("\t(SetLoopMSPeriod) : ")); DBG_PRN(pCmndMS->GetArg_dw());
 				if (!isMeasuring) {
 					// Change parameter
 					noInterrupts();
 					lLoopMSPeriod = pCmndMS->GetArg_dw();
 					interrupts();
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 161 Set number of points for calculate moving average of flow Q. Default = 10.
 			case cmndSetQMA_Points:
+				DBG_PRN(F("\t(SetQMA_Points) : ")); DBG_PRN(pCmndMS->GetArg_n());
 				if (!isMeasuring) {
 					// Change parameter
 					noInterrupts();
 					pEMFM->SetQMA_Points(nQMA_Points = pCmndMS->GetArg_n());
 					interrupts();
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 162 Set interval for calculate instant flow Q, millis. Default = 500.
 			case cmndSetInt4CalcQ:
+				DBG_PRN(F("\t(SetInt4CalcQ) : ")); DBG_PRN(pCmndMS->GetArg_dw());
 				if (!isMeasuring) {
 					// Change parameter
 					noInterrupts();
 					pEMFM->SetInt4CalcQ(lInt4CalcQ = pCmndMS->GetArg_dw());
 					interrupts();
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 163 Set width in millisec of external button press. Default = 100.
 			case cmndSetButtonPressWidth:
+				DBG_PRN(F("\t(SetButtonPressWidth) : ")); DBG_PRN(pCmndMS->GetArg_n());
 				if (!isMeasuring) {
 					// Change parameter
 					noInterrupts();
 					pMSExtButton->SetExtButtonPressWidth(nExtButtonPressWidth = pCmndMS->GetArg_n());
 					interrupts();
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 164 Set antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
 			case cmndSetAntiTinklingOn:
+				DBG_PRN(F("\t(SetAntiTinklingOn) : ")); DBG_PRN(pCmndMS->GetArg_b());
 				if (!isMeasuring) {
 					// Change parameter
 					isAntiTinklingOn = pCmndMS->GetArg_b();
@@ -564,28 +575,37 @@ void BTSerialReadCmnd()
 					// Re-Initialization
 					detachInterrupt(digitalPinToInterrupt(EMFM_PIN));
 					pEMFM->Init(0, DWORD(-1), lInt4CalcQ, nQMA_Points, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
 
 			// 165 Set Width in millisec of EMFM output pulse. Default = 50.
 			case cmndSetPulseWidth:
+				DBG_PRN(F("\t(SetPulseWidth) : ")); DBG_PRN(pCmndMS->GetArg_n());
 				if (!isMeasuring) {
 					// Change parameter
 					noInterrupts();
 					pEMFM->SetPulseWidth(nPulseWidth = pCmndMS->GetArg_n());
 					interrupts();
-					DBG_PRN("\t PASSED");
+					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN("\t SKIPED");
+				else DBG_PRN(F("\t SKIPED"));
 				break;
-
 		}
 	}
 	else if (nErrCode != -1) {
-		DBG_PRN_LOGO(strAppName, strVerMaj); DBG_PRN(": RECEIVE ERROR = ");	DBG_PRN(nErrCode);	DBG_PRN("\t SKIPED");
+		DBG_PRN_LOGO(strAppName, strVerMaj); 
+		DBG_PRN(F("======>>> BTSerial ERROR: "));	DBG_PRN(nErrCode);	
+		DBG_PRN(F("\t DATA: "));					DBG_PRN((pCmndMS->GetData())[0]);
 		
+		if ( (pCmndMS->GetData())[0] <= CMND_LEN && (pCmndMS->GetData())[0] >= 0 )
+			for (int j = 1; j <= CMND_LEN; ++j) { DBG_PRN(F(" 0x")); DBG_PRN((pCmndMS->GetData())[j], HEX);	}
+		
+		DBG_PRN(F("\t SKIPED"));
+		
+		dwCountReceiveErr++;
+
 		// Set ReceiveError status bit to 1
 		pDataMS->SetReceiveError(1);
 	}
@@ -603,7 +623,8 @@ void SerialReadCmnd()
 	if (Serial.available() > 0)
 	{
 		DBG_PRN_LOGO(strAppName, strVerMaj);
-		DBG_PRN("PRESSED: ");
+		DBG_PRN(F("--->>> Serial PRESSED: "));
+		
 		// считываем байт данных
 		nInpByte = Serial.read();
 		DBG_PRN(nInpByte);
@@ -612,8 +633,8 @@ void SerialReadCmnd()
 		if (nInpByte == 32) // SPACE
 		{
 			lCurrCount = pEMFM->GetCountFull();
-			DBG_PRN("\t COUNT = ");	DBG_PRN(lCurrCount, 10);
-			DBG_PRN("\t TIME = ");	DBG_PRNL(millis() - lTime);
+			DBG_PRN(F("\t COUNT = "));	DBG_PRN(lCurrCount, 10);
+			DBG_PRN(F("\t TIME = "));	DBG_PRNL(millis() - lTime);
 			
 			lCurrCount = 0;	pEMFM->SetCountFull(0);
 			lTime = millis();

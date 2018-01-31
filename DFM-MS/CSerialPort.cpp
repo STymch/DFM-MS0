@@ -81,6 +81,7 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 	len = Read();
 	if (len >= nMaxBuffLen || len == 0) {
 		retcode = -3;	// Data size is wrong
+		pBuffer[i++] = (BYTE)len;
 //		Serial.println(); Serial.print("Read: Wrong len="); Serial.print(len); Serial.print("\tBytes=");
 //		while ((b = Read()) >= 0) { Serial.print("0x"); Serial.print(b, HEX); Serial.print(" "); }
 	}

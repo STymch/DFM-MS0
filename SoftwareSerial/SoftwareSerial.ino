@@ -3,7 +3,7 @@
  Created:	05.06.2017 13:43:41
  Author:	Sergiy Tymchenko
  
- For work in AT-command mode 
+ For work in AT-command mode for HC-0x bluetooth modules
 
 */
 
@@ -11,13 +11,12 @@
 #include <SoftwareSerial.h>
 
 const int   LED_PIN = 13;				// LED pin
-const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-05 
-const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-05
+const int	RX_PIN = 10;				// Software UART RX pin, connect to TX of Bluetooth HC-0x 
+const int	TX_PIN = 11;				// Software UART TX pin, connect to RX of Bluetooth HC-0x
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM
 const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM. Default for HC-05=38400, for HC-06,08=9600
 int			nLEDState = LOW;			// LED state
 
-// SoftwareSerial* BTSerial;// (RX_PIN, TX_PIN); // Software UART RX, TX for Bluetooth HC-05
 SoftwareSerial BTSerial(RX_PIN, TX_PIN);
 
 void setup() {
@@ -44,12 +43,14 @@ void setup() {
 }
 
 void loop() {
+	// Read byte from software port => translate into hardware port
 	if (BTSerial.available()) {
 		Serial.write(BTSerial.read());
 		nLEDState = !nLEDState;
 		digitalWrite(LED_PIN, nLEDState);
 	}
-
+	
+	// Read byte from hardware port => translate into software port
 	if (Serial.available()) {
 		BTSerial.write(Serial.read());
 		nLEDState = !nLEDState;
