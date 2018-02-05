@@ -36,9 +36,9 @@
 
 // Global constatnts
 // Application name & Version
-const char strAppName[] = "DFM-MS ";
-const char strVerMaj[]	= "1.0 ";
-const char strVerMin[]	= "2.75 ";
+const char strAppName[]			= "DFM-MS ";
+const char strVerMajMin[]		= "1.0 ";		// Major, minor versions
+const char strVerStatusBuild[]	= "3.76 ";		// Status, build
 
 // Arduino analog GPIO
 const int   POWER_INPUT_PIN	= 0;		// Power analog input pin
@@ -153,11 +153,11 @@ void setup()
 	// --==-- Hardware serial port
 	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRNL(F(": SETUP Starting ..."));
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRNL(F(": SETUP Starting ..."));
 	
 	// --==-- Power DC Control object
 	// Create object & initialization
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": PowerDC ON: "));
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": PowerDC ON: "));
 	pPowerDC = new CPowerDC(POWER_INPUT_PIN, POWER_ON_OFF_PIN, nDelayAfterPowerON);
 	// Power ON
 	pPowerDC->PowerON();
@@ -196,7 +196,7 @@ void setup()
 	pEMFM->Init(0, DWORD(-1), lInt4CalcQ, nQMA_Points, PULSE_UNIT_LTR, nPULSE_INT_MODE, pISR);
 
 	// --==-- Humidity & temperature sensor
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": RHT sensor: "));
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": RHT sensor: "));
 	pRHTSensor = new CRHTSensor(DHTxx_PIN, snsrDHT21);
 	// Get RH and temperature from sensor
 	if (!(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)))
@@ -215,7 +215,7 @@ void setup()
 	pDataMS->SetRHumidityAir(fRHumidityAir);			// set humidity
 
 	// --==-- Temperature of water sensor
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(F(": Temperature of water sensor: "));
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": Temperature of water sensor: "));
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, TEMPERATURE_PRECISION);
 	// Waiting...
 	delay(2000);
@@ -240,7 +240,7 @@ void setup()
 	pLED = new CLED(LED_PIN, nLEDStateInit);
 
 	// --==-- Delay before starting main loop
-	DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRNL(F(": MAIN Starting ..."));
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRNL(F(": MAIN Starting ..."));
 }
 
 ///////////////////////////////////////////////////////////////
@@ -302,7 +302,7 @@ void loop()
 		pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 		
 		// Debug Print data
-		DBG_PRN_LOGO(strAppName, strVerMaj);	DBG_PRN(lCount);
+		DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(lCount);
 		DBG_PRN(F("\tTime="));					DBG_PRN(lTimeBegin, 10);
 		DBG_PRN(F("\tSt=0x"));					DBG_PRN(pDataMS->GetStatus(), HEX);
 		DBG_PRN(F("\tCF="));					DBG_PRN(pEMFM->GetCountFull(), 10);
@@ -428,7 +428,7 @@ void BTSerialReadCmnd()
 
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
-		DBG_PRN_LOGO(strAppName, strVerMaj);
+		DBG_PRN_LOGO(strAppName, strVerMajMin);
 		DBG_PRN(F("--->>> BTSerial CMND: "));	DBG_PRN(pCmndMS->GetCode());
 		
 		// Set ReceiveError status bit to 0
@@ -595,7 +595,7 @@ void BTSerialReadCmnd()
 		}
 	}
 	else if (nErrCode != -1) {
-		DBG_PRN_LOGO(strAppName, strVerMaj); 
+		DBG_PRN_LOGO(strAppName, strVerMajMin); 
 		DBG_PRN(F("======>>> BTSerial ERROR: "));	DBG_PRN(nErrCode);	
 		DBG_PRN(F("\t DATA: "));					DBG_PRN((pCmndMS->GetData())[0]);
 		
@@ -622,7 +622,7 @@ void SerialReadCmnd()
 	// Ожидание команды из последовательного порта
 	if (Serial.available() > 0)
 	{
-		DBG_PRN_LOGO(strAppName, strVerMaj);
+		DBG_PRN_LOGO(strAppName, strVerMajMin);
 		DBG_PRN(F("--->>> Serial PRESSED: "));
 		
 		// считываем байт данных
