@@ -1,7 +1,9 @@
 #ifndef _CRHTSENSOR_h
 #define _CRHTSENSOR_h
 
+#include "CommDef.h"
 #include <SparkFunHTU21D.h>
+
 /* HTU21D humidity/temperature sensor
 By : Nathan Seidle
 SparkFun Electronics
@@ -44,14 +46,14 @@ class CRHTSensor
 	HTU21D	*m_pHTU;		// HTU21D sensor object
 	
 	DHT		*m_pDHT;		// DHT sensor object
-	int		m_nDHT_PIN;		// DHT digital pin we're connected to
-	int		m_nDHT_TYPE;	// DHT sensors type
+	INT		m_nDHT_PIN;		// DHT digital pin we're connected to
+	INT		m_nDHT_TYPE;	// DHT sensors type
 	
-	int		m_nSensorModel;	// Autodetect Model of sensor: 0 - HTU21D, 1 - DHTxx, -1 - no sensors
+	INT		m_nSensorModel;	// Autodetect Model of sensor: 0 - HTU21D, 1 - DHTxx, -1 - no sensors
 		
 public:
 	// Constructor, destructor
-	CRHTSensor(int nDHT_PIN, int nDHT_TYPE) : m_nDHT_PIN(nDHT_PIN), m_nDHT_TYPE(nDHT_TYPE)
+	CRHTSensor(INT nDHT_PIN, INT nDHT_TYPE) : m_nDHT_PIN(nDHT_PIN), m_nDHT_TYPE(nDHT_TYPE)
 	{
 		// Create HTU21D sensor object
 		m_pHTU = new HTU21D();
@@ -61,15 +63,15 @@ public:
 		m_pDHT = new DHT(m_nDHT_PIN, m_nDHT_TYPE);
 		m_pDHT->begin();
 	}
-	~CRHTSensor() { }
+	~CRHTSensor() { delete m_pDHT; delete m_pHTU; }
 	
-	// Get RH and temperature from all sensors
-	// Return:	0 - OK, -1 - sensor error
-	int	GetRHT(float& fHumidity, float& fTemperature);
-		
-	// Get RHT sensor model
-	// Return:	0 - HTU, 1 - DHTxx,  -1 - No sensor
-	int GetSensorModel() { return m_nSensorModel; }
+	// --- CONSTANT methods
+	// Get RHT sensor model, Return:	0 - HTU, 1 - DHTxx,  -1 - No sensor
+	INT GetSensorModel() const { return m_nSensorModel; }
+
+	// --- MODIFYING methods
+	// Get RH and temperature from all sensors, Return:	0 - OK, -1 - sensor error
+	INT	GetRHT(FLOAT& fHumidity, FLOAT& fTemperature);
 };
 
 #endif

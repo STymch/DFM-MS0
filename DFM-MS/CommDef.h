@@ -36,10 +36,13 @@
 #endif
 
 // --- ТИПЫ ДАННЫХ
+typedef							bool	BOOL;	// 1 byte
+typedef							char	CHAR;	// 1 byte
 typedef		unsigned			char	BYTE;	// 1 byte
 typedef		unsigned			short	WORD;	// 2 byte
 typedef		unsigned			int		UINT;	// 2 byte
-typedef		signed				int		INT;	// 2 byte
+typedef							int		INT;	// 2 byte
+typedef							long	LONG;	// 4 byte
 typedef		unsigned			long	DWORD;	// 4 byte
 typedef							float	FLOAT;	// 4 byte
 typedef		unsigned	long	long	QWORD;	// 8 byte

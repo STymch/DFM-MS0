@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SoftwareSerialExample", "SoftwareSerialExample\SoftwareSerialExample.vcxproj", "{C166B0E8-46C2-44EF-BCB0-EEC99E965AD0}"
 EndProject
@@ -24,6 +24,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PowerInput", "PowerInput\PowerInput.vcxproj", "{1544A09C-20E2-4626-AA41-A084B1191600}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExtInterruptGen", "ExtInterruptGen\ExtInterruptGen.vcxproj", "{89F02852-8F41-4184-8ACB-B9EA3BB7DFBE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GPS_Test", "GPS_Test\GPS_Test.vcxproj", "{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DHTtester", "..\..\Arduino\My Examples\131638095635590403\DHTtester\DHTtester.vcxproj", "{26B765D1-3767-4BCC-AE7D-D764FED75B51}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -95,6 +99,18 @@ Global
 		{89F02852-8F41-4184-8ACB-B9EA3BB7DFBE}.Release|x64.ActiveCfg = Release|Win32
 		{89F02852-8F41-4184-8ACB-B9EA3BB7DFBE}.Release|x86.ActiveCfg = Release|Win32
 		{89F02852-8F41-4184-8ACB-B9EA3BB7DFBE}.Release|x86.Build.0 = Release|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Debug|x64.ActiveCfg = Debug|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Debug|x86.ActiveCfg = Debug|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Debug|x86.Build.0 = Debug|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Release|x64.ActiveCfg = Release|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Release|x86.ActiveCfg = Release|Win32
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8}.Release|x86.Build.0 = Release|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Debug|x64.ActiveCfg = Debug|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Debug|x86.ActiveCfg = Debug|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Debug|x86.Build.0 = Debug|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Release|x64.ActiveCfg = Release|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Release|x86.ActiveCfg = Release|Win32
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -109,6 +125,8 @@ Global
 		{65F0C69A-8CDE-47F9-A302-14891D6AEAFC} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
 		{1544A09C-20E2-4626-AA41-A084B1191600} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
 		{89F02852-8F41-4184-8ACB-B9EA3BB7DFBE} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{573C702F-0E7C-4D8B-9A49-F5848BAB4BD8} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
+		{26B765D1-3767-4BCC-AE7D-D764FED75B51} = {1EF864A1-9B49-437D-8AA5-A89FAF41BA4E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B7BAF632-EF3E-4027-994D-82B2B3E3CCD8}

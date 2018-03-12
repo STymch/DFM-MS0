@@ -1,6 +1,6 @@
-// 
-// 
-// 
+///////////////////////////////////////////////////////
+// <<< CEMFM - class for EMFM QTLD-15 / Generator
+///////////////////////////////////////////////////////
 
 #include "CEMFM.h"
 
@@ -9,9 +9,9 @@ void CEMFM::Init(
 		DWORD	dwCountF,		// counter of all input pulses from EMFM/Generator from turn on FMVI-MS
 		DWORD	dwCountC,		// current counter for input pulses from EMFM/Generator
 		DWORD	lTInterval4Q,	// interval in millisec for calculate current Q
-		int		nQMA_Points,	// Number of points for calculate moving average of instant flow Q	
-		int		nPulseOnLtr,	// Number of pulse from EMFM for 1 ltr water	
-		int		nINT_MODE,		// mode of external interrupt: LOW, CHANGE, RISING, FALLING
+		INT		nQMA_Points,	// Number of points for calculate moving average of instant flow Q	
+		INT		nPulseOnLtr,	// Number of pulse from EMFM for 1 ltr water	
+		INT		nINT_MODE,		// mode of external interrupt: LOW, CHANGE, RISING, FALLING
 		void	(*ISR)()		// external interrupt ISR
 )
 {
@@ -35,18 +35,16 @@ void CEMFM::Init(
 }
 
 // Set number of points for calculate moving average of instant flow Q	
-void	CEMFM::SetQMA_Points(int nQMA_Points) 
+void	CEMFM::SetQMA_Points(INT nQMA_Points) 
 {
 	m_nQMA_Points = (nQMA_Points <= MA_NVAL ? nQMA_Points : MA_NVAL);
 	if (m_nQMA_Points <= 0) m_nQMA_Points = 1;
-	for (int i = 0; i < MA_NVAL; m_pfQ[i++] = 0.0);
+	for (INT i = 0; i < MA_NVAL; m_pfQ[i++] = 0.0);
 }
 
 // Calculate current and moving average of flow Q
 FLOAT	CEMFM::CalculateQ()
 {
-	DWORD	lTInterval;
-
 	// Starting calculation Q process, at start m_isQCalculate = 1
 	if (m_isQCalculate) {
 		m_lTStartQ = millis();				// save time of begin interval of calculation Q
@@ -56,7 +54,7 @@ FLOAT	CEMFM::CalculateQ()
 	// Calculation Q loop
 	else {
 		// Calculate time interval
-		lTInterval = millis() - m_lTStartQ;
+		DWORD lTInterval = millis() - m_lTStartQ;
 		// Check full time interval for calculation Q 
 		if (lTInterval >= m_lTInterval4Q)		// time expiried,  calculate Q
 		{	m_fQm3h = 3600.0F * (m_dwCountFull - m_dwCountStartQ) / (m_nPulseOnLtr * lTInterval);
@@ -87,11 +85,11 @@ FLOAT	CEMFM::CalculateQ(DWORD lTimeInt)
 }
 
 // Calculate moving average of flow Q
-FLOAT	CEMFM::CalculateQMA(float fQcurr)
+FLOAT	CEMFM::CalculateQMA(FLOAT fQcurr)
 {
 	m_fQMAm3h += (fQcurr - m_pfQ[0]) / m_nQMA_Points;
 
-	for (int i = 0; i < m_nQMA_Points - 1; ++i)	m_pfQ[i] = m_pfQ[i + 1];
+	for (INT i = 0; i < m_nQMA_Points - 1; ++i)	m_pfQ[i] = m_pfQ[i + 1];
 	m_pfQ[m_nQMA_Points - 1] = fQcurr;
 	
 	return m_fQMAm3h;

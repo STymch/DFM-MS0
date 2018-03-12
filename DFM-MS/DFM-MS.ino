@@ -19,7 +19,6 @@
 //		loop()					-	Working loop of DFM-MS
 //		ISR_InputPulseAntOFF	-	ISR callback function for pulse out of EMFM, antitinkling is off
 //		ISR_InputPulseAntON		-	ISR callback function for pulse out of EMFM, antitinkling is on
-//		ISR_ExtButtonPressAntON -	ISR callback function for press external button, antitinkling is on
 //		BTSerialReadCmnd()		-	Read command from DFM-CP by BT Serial Port
 //		SerialUI()				-	User interface by srial port (hardware or BT)
 /////////////////////////////////////////////////////////////////////////////////
@@ -29,89 +28,90 @@
 #include "CSerialPort.h"
 #include "CDataMS.h"
 #include "CEMFM.h"
-#include "CTemperatureSensor.h"
 #include "CRHTSensor.h"
-#include "CMSExtButton.h"
+#include "CTemperatureSensor.h"
+#include "CGPS.h"
 #include "CLED.h"
+#include "TimerOne.h"
 
-// Global constatnts
+
+// ---===--- Global constants ---===---
 // Application name & Version
-const char strAppName[]			= "DFM-MS ";
-const char strVerMajMin[]		= "1.0 ";		// Major, minor versions
-const char strVerStatusBuild[]	= "3.76 ";		// Status, build
+const CHAR strAppName[]			= "DFM-MS ";
+const CHAR strVerMajMin[]		= "1.1 ";		// Major, minor versions
+const CHAR strVerStatusBuild[]	= "0.77 ";		// Status, build
 
 // Arduino analog GPIO
-const int   POWER_INPUT_PIN	= 0;		// Power analog input pin
+const INT   POWER_INPUT_PIN	= 0;		// Power analog input pin
 
 // Arduino digital GPIO
-const int   EXT_BUTTON_PIN	= 2;		// External button input pin
-const int   EMFM_PIN		= 3;		// EMFM digital out input pin
-const int   POWER_ON_OFF_PIN= 4;		// Power ON/OFF output pin
-const int   TEMP_PIN		= 5;		// Temperature sensor DS18B20 DQ out input pin
-const int   ALM_FQH_PIN		= 6;		// EEMFM FQH ALARM out input pin
-const int   ALM_FQL_PIN		= 7;		// EEMFM FQL ALARM out input pin
-const int	DHTxx_PIN		= 8;		// RHT sensor DHTxx input pin 
-const int	RX_PIN			= 10;		// Software UART RX pin, connect to TX of Bluetooth HC-05 
-const int	TX_PIN			= 11;		// Software UART TX pin, connect to RX of Bluetooth HC-05
-const int   LED_PIN			= 13;		// LED output pin
+const INT   EXT_LED_PIN		= 2;		// External LED ootput pin
+const INT	EMFM_PIN		= 3;		// EMFM digital out input pin
+const INT   POWER_ON_OFF_PIN= 4;		// Power ON/OFF output pin
+const INT   TEMP_PIN		= 5;		// Temperature sensor DS18B20 DQ out input pin
+const INT   ALM_FQH_PIN		= 6;		// EEMFM FQH ALARM out input pin
+const INT   ALM_FQL_PIN		= 7;		// EEMFM FQL ALARM out input pin
+const INT	DHTxx_PIN		= 8;		// RHT sensor DHTxx input pin 
+const INT	RX_PIN_BT		= 10;		// Software UART RX pin, connect to TX of Bluetooth HC-0x 
+const INT	TX_PIN_BT		= 11;		// Software UART TX pin, connect to RX of Bluetooth HC-0x
+const INT	RX_PIN_GPS		= 12;		// Software UART RX pin, connect to TX of serial GPS module 
+const INT	TX_PIN_GPS		= 13;		// Software UART TX pin, connect to RX of serial GPS module
+const INT   INT_LED_PIN		= 13;		// Internal LED output pin
 
 // Serial ports parameters
-const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
-const long  DR_SOFTWARE_COM = 38400;	// Data rate for software COM, bps
-const long	COM_READ_TIMEOUT= 100;		// Timeout for serial port data read, millis
-	
+const LONG  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
+const LONG  DR_BT_COM		= 38400;	// Data rate for software COM of Bluetooth HC-0x, bps
+const LONG	BT_READ_TIMEOUT = 100;		// Timeout for serial port Bluetooth data read, millis
+const LONG  DR_GPS_COM		= 9600;		// Data rate for software COM of serial GPS module, bps
+const LONG	GPS_READ_TIMEOUT= 1000;		// Timeout waiting GPS data
+
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR	= 1000;		// Quantity pulse in 1 ltr
-const int	TEMPERATURE_PRECISION = 9;	// Temperature sensor resolution: 9-12, 9 - low 
+const INT	TEMPERATURE_PRECISION = 9;	// Temperature sensor resolution: 9-12, 9 - low 
 
-// Periods
+const INT	STATUS_BIT_OK	= 0;		// Status bit: no error state
+const INT	STATUS_BIT_ERR	= 1;		// Status bit: error state
 
-// Global variables
+// ---===--- Global variables ---===---
+DWORD	lT1Period			= 10000;	// Timer1 period, microsec
+BOOL	state				= false;	// State for calculation time interval 
+volatile DWORD	lT1Counter	= 0;		// Timer 1 tick counter
+DWORD	lT1CountStart, lT1CountStop;	// For save timer's ticks
+
 DWORD	lLoopMSPeriod		= 200;		// DFM-MS main loop period, millis
-DWORD	lDebugPrnPeriod		= 2000;		// LED blink and debug print period
+DWORD	lDebugPrnPeriod		= 2000;		// Debug print period
 DWORD	lGetSensorsPeriod	= 60000;	// Get sensors of T, RHT Air period
 DWORD	lInt4CalcQ			= 1000;		// Interval for calculate instant flow Q, millis
-int		nDelayAfterPowerON	= 2000;		// Wait for Power ON, millis
+INT		nDelayAfterPowerON	= 2000;		// Wait for Power ON, millis
 
 DWORD	dwCountBadPulse		= 0;		// Counter of bad input pulse packet (pulse front < nPulseWidth)
 DWORD	dwCountReceiveErr	= 0;		// Counter of bad received packet
 
-int		nQMA_Points			= 10;		// Number of points for calculate moving average of instant flow Q
-int		nPulseWidth			= 50;		// Width in millisec of EMFM output pulse
-int		nALM_FQHWidth		= 500;		// Width in millisec of EMFM ALARM FQH signal
-int		nALM_FQLWidth		= 500;		// Width in millisec of EMFM ALARM FQL signal
-int		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
+INT		nQMA_Points			= 3;		// Number of points for calculate moving average of instant flow Q
+INT		nPulseWidth			= 50;		// Width in millisec of EMFM output pulse
+INT		nALM_FQHWidth		= 500;		// Width in millisec of EMFM ALARM FQH signal
+INT		nALM_FQLWidth		= 500;		// Width in millisec of EMFM ALARM FQL signal
+INT		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CHANGE, RISING, FALLING
 void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
-bool	isAntiTinklingOn	= false;	// Antitinkling flag for EMFM output pulse: true - ON, false - OFF
+BOOL	isAntiTinklingOn	= false;	// Antitinkling flag for EMFM output pulse: true - ON, false - OFF
 
-int		nExtButtonPressWidth= 10;		// Width in millisec of external button press
-int		nEXT_BUTTON_INT_MODE= FALLING;	// Mode of interrupt of external button in: LOW, CHANGE, RISING, FALLING
+INT		nTypeRHTSensor		= snsrDHT21;// Type of RHT DHT sensor: DHT21, DHT22, DHT11
 
-int		nTypeRHTSensor		= snsrAUTO;	// Type of RHT sensor, AUTO - autodetect sensor
+BOOL	isMeasuring			= false;	// Measuring state flag: true - Test is ON, false - Test is OFF
 
-bool	isMeasuring			= false;	// Measuring state flag: true - Test is ON, false - Test is OFF
+INT		nLEDStateInit		= LOW;		// Init LEDs state
 
-int		nLEDStateInit		= LOW;		// Init LED state
+BYTE	pBuff[DATA_LEN+1];				// Buffer for save sending data
 
-byte	pBuff[DATA_LEN+1];				// Buffer for save sending data
+FLOAT	fTick_ms,				// Millisecs in timer tick
+fTAir,					// Air Temperature
+fRHumidityAir,			// Air Relative Humidity
+fTWater,				// Water Temperature
+fLatitude = 0.0,		// 48.476017,	// GPS Latitude
+fLongitude = 0.0,		// 35.014864,	// GPS Longitude
+fQ = 0.0;				// Current Volume Flow of Water
 
-// Test flow value (m3/h), for working without Flowmeter
-const float Q3 = 1.537;
-const float Q2 = 0.067;
-const float Q1 = 0.042;
-float	fTestQ				= Q3;		// Test flow generation value (m3/h), for working without Flowmeter
-bool	isTestFlowOn		= false;	// Test flow generation: true - ON, false - OFF
-
-bool	isSerialPrn = true;
-
-int		i, nLen;
-long	lCount		= 0;
-int		nTypeSerial = 1; // 0 - hardware, 1 - software
-DWORD	dwTimerTick = 0;
-
-
-// For serial console (hardware COM)
-DWORD	lCurrCount, lTime;
+DWORD	lCount = 0, lCurrCount, lTime;
 
 // ---===--- Global objects ---===---
 // --==-- Bluetooth serial port
@@ -131,24 +131,24 @@ CRHTSensor			*pRHTSensor;
 // --==-- Temperature of water sensor
 CTemperatureSensor	*pTemperatureSensor;
 
+// --==-- GPS module
+CGPS *pGPS;
+
 // --==-- Power DC Control object
 CPowerDC			*pPowerDC;
 
-// --==-- External button of DFM-MS object
-CMSExtButton		*pMSExtButton;
-
-// --==-- LED object
-CLED				*pLED;
-
-byte	bStatus = 0;
-FLOAT	fTAir, fRHumidityAir, fTWater, fQ = 0.0;
+// --==-- LED objects
+CLED				*pInt_LED;	// Internal LED
+CLED				*pExt_LED;	// External LED
 
 ///////////////////////////////////////////////////////////////
 // Initialisation DFM-MS
 ///////////////////////////////////////////////////////////////
 void setup() 
 {
-	int rc;
+	INT rc;
+		// --==-- Arduino Timer 1//	Timer1.initialize(lT1Period);			// initialize Timer 1, and set period//	Timer1.attachInterrupt(Timer1Callback);	// attaches Timer 1 overflow ISR function and enable a timer overflow interrupt
+	fTick_ms = lT1Period / 1000.0f;			// ticks in ms
 
 	// --==-- Hardware serial port
 	// Set the data rate and open
@@ -165,15 +165,15 @@ void setup()
 
 	// --==-- Bluetooth serial port
 	// Create object & initialization
-	pBTSerialPort = new CSerialPort(1, RX_PIN, TX_PIN);
-	pBTSerialPort->Init(DR_SOFTWARE_COM, 0);
-	pBTSerialPort->SetReadTimeout(COM_READ_TIMEOUT);
+	pBTSerialPort = new CSerialPort(1, RX_PIN_BT, TX_PIN_BT);
+	pBTSerialPort->Init(DR_BT_COM, 0);
+	pBTSerialPort->SetReadTimeout(BT_READ_TIMEOUT);
 
 	// --==-- Send data packet object
 	// Create object
 	pDataMS = new CDataMS;
 	// Clear status byte
-	pDataMS->SetStatus(0);
+	pDataMS->SetStatus(STATUS_BIT_OK);
 	// Set Power DC value
 	pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 
@@ -197,7 +197,7 @@ void setup()
 
 	// --==-- Humidity & temperature sensor
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": RHT sensor: "));
-	pRHTSensor = new CRHTSensor(DHTxx_PIN, snsrDHT21);
+	pRHTSensor = new CRHTSensor(DHTxx_PIN, nTypeRHTSensor);
 	// Get RH and temperature from sensor
 	if (!(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)))
 	{
@@ -210,9 +210,9 @@ void setup()
 		DBG_PRN(F("NOT DETECTED! \t Model: ")); DBG_PRN(pRHTSensor->GetSensorModel());
 	}	
 
-	pDataMS->SetRHTSensorError( !rc ? 0 : 1 );			// set status bit RHT sensor
-	pDataMS->SetTemprAir(fTAir);						// set temperature of air
-	pDataMS->SetRHumidityAir(fRHumidityAir);			// set humidity
+	pDataMS->SetRHTSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit RHT sensor
+	pDataMS->SetTemprAir(fTAir);										// set temperature of air
+	pDataMS->SetRHumidityAir(fRHumidityAir);							// set humidity
 
 	// --==-- Temperature of water sensor
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": Temperature of water sensor: "));
@@ -229,15 +229,29 @@ void setup()
 	}
 	else	DBG_PRNL(DS_MODEL_NAME[0]);
 	
-	pDataMS->SetTempSensorError( !rc ? 0 : 1);	// set status bit
-	pDataMS->SetTemprWater(fTWater);			// set water temperature
-	
-	// --==-- External button of DFM-MS object
-	// Create object
-	pMSExtButton = new CMSExtButton(EXT_BUTTON_PIN, LOW, nExtButtonPressWidth, nEXT_BUTTON_INT_MODE, ISR_ExtButtonPressAntON);
+	pDataMS->SetTempSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit
+	pDataMS->SetTemprWater(fTWater);									// set water temperature
 
-	// --==-- LED 
-	pLED = new CLED(LED_PIN, nLEDStateInit);
+	// --==-- GPS module
+	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": GPS module: "));
+	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM, GPS_READ_TIMEOUT);
+	// Waiting...
+	delay(2000);
+	// Get position from GPS
+	if (!(rc = pGPS->GetGPS_Position(fLatitude, fLongitude))) {
+		DBG_PRN(F("OK"));
+		DBG_PRN(F("\t LAT: "));		DBG_PRN(fLatitude);
+		DBG_PRN(F("\t LON: "));		DBG_PRN(fLongitude);
+	}
+	else	DBG_PRN(F("NOT DETECTED!"));
+
+	pDataMS->SetGPSError (!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
+	pDataMS->SetGPS_LAT(fLatitude);									// set GPS Latitude
+	pDataMS->SetGPS_LON(fLongitude);								// set GPS Longitude
+
+	// --==-- LEDs 
+	pInt_LED = new CLED(INT_LED_PIN, nLEDStateInit);
+	pExt_LED = new CLED(EXT_LED_PIN, nLEDStateInit);
 
 	// --==-- Delay before starting main loop
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRNL(F(": MAIN Starting ..."));
@@ -264,12 +278,12 @@ void loop()
 	if (lCount % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isMeasuring)
 	{
 		// Read humidity and temperature from RHT sensor and save in data packet
-		int rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-		pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
+		INT rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+		pDataMS->SetRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			// set status bit of sensor
 		pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
 
 		// Read water temperature and save in data packet
-		pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
+		pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
 		pDataMS->SetTemprWater(fTWater);
 	}
 
@@ -289,18 +303,26 @@ void loop()
 	interrupts();
 	
 	// Set moving average of Q into data packet
-	if (!isTestFlowOn)	pDataMS->SetQ(pEMFM->GetQMA());
-	else pDataMS->SetQ(fTestQ);			// Generate test flow if need
-	
+	pDataMS->SetQ(pEMFM->GetQMA());
+		
 	// Blink LED, Get Power, Debug print to serial port console
-	if (lCount % (lDebugPrnPeriod / lLoopMSPeriod) == 0 && isSerialPrn)
+	if (lCount % (lDebugPrnPeriod / lLoopMSPeriod) == 0)
 	{
-		// Blink LED 
-		pLED->Blink();
+		// Blink internal LED 
+		pInt_LED->Blink();
 		
 		// Get Power DC value and save in data packet
-		pDataMS->SetPowerU(pPowerDC->GetPowerDC());
+		if (!isMeasuring) pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 		
+		// Get GPS data
+		if (!pGPS->isNewData() && !isMeasuring)
+		{
+			INT rc = pGPS->GetGPS_Position(fLatitude, fLongitude);
+			pDataMS->SetGPSError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
+			pDataMS->SetGPS_LAT(fLatitude);								// set GPS Latitude
+			pDataMS->SetGPS_LON(fLongitude);							// set GPS Longitude
+		}
+
 		// Debug Print data
 		DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(lCount);
 		DBG_PRN(F("\tTime="));					DBG_PRN(lTimeBegin, 10);
@@ -312,10 +334,12 @@ void loop()
 		DBG_PRN(F("\tTA="));					DBG_PRN(pDataMS->GetTemprAir(), 1);
 		DBG_PRN(F("\tRH="));					DBG_PRN(pDataMS->GetRHumidityAir(), 1);
 
+		DBG_PRN(F("\tLAT="));					DBG_PRN(pDataMS->GetGPS_LAT(), 6);
+		DBG_PRN(F("\tLON="));					DBG_PRN(pDataMS->GetGPS_LON(), 6);
+
 		DBG_PRN(F("\tQ="));						DBG_PRN(pEMFM->GetQCurr(), 3);
 		DBG_PRN(F("\tQMA="));					DBG_PRN(pEMFM->GetQMA(), 3);
 		
-		if (isTestFlowOn)						{ DBG_PRN(F("\tQTest="));	DBG_PRN(fTestQ, 3); }
 		DBG_PRN(F("\tU="));						DBG_PRN(pDataMS->GetPowerU());
 		
 		DBG_PRN(F("\tRecErr="));				DBG_PRN(dwCountReceiveErr, 10);
@@ -327,7 +351,10 @@ void loop()
 	// Delay for end of loop period 
 	if(lLoopMSPeriod > lTimeInt) delay(lLoopMSPeriod - lTimeInt);
 }
-
+///////////////////////////////////////////////////////////////
+// Timer 1 overflow ISR function
+///////////////////////////////////////////////////////////////
+void Timer1Callback() { ++lT1Counter; }
 ///////////////////////////////////////////////////////////////
 // ISR callback function for pulse out of EMFM, antitinkling is off
 ///////////////////////////////////////////////////////////////
@@ -402,37 +429,37 @@ void ISR_InputPulseAntON()
 ///////////////////////////////////////////////////////////////
 // ISR callback function for press external button, antitinkling is on
 ///////////////////////////////////////////////////////////////
-void ISR_ExtButtonPressAntON()
+/*void ISR_ExtButtonPressAntON()
 {
 	// Button press: check time between previous button press 
 	if (pMSExtButton->isPress(millis())) // button press correct
 	{
 		// Blink LED 
-		pLED->Blink();
+		pInt_LED->Blink();
 
 		// Reverse star-stop bit in status byte of DFM-MS
-		pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
+//		pDataMS->SetStartStopExt(!pDataMS->GetStartStopExt() ? 1 : 0);
 		
 		// Save new time of button press
 		pMSExtButton->SetTStartPress(millis());
 	}
 }
-
+*/
 ///////////////////////////////////////////////////////////////
 // Read command from DFM-CP
 ///////////////////////////////////////////////////////////////
 void BTSerialReadCmnd()
 {
 	DWORD	dwCountCurr;
-	int		nErrCode, rc;
+	INT		nErrCode, rc;
 
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
 		DBG_PRN_LOGO(strAppName, strVerMajMin);
 		DBG_PRN(F("--->>> BTSerial CMND: "));	DBG_PRN(pCmndMS->GetCode());
 		
-		// Set ReceiveError status bit to 0
-		pDataMS->SetReceiveError(0);
+		// Set ReceiveError status bit to no error
+		pDataMS->SetReceiveError(STATUS_BIT_OK);
 
 		// Analize input command
 		switch (pCmndMS->GetCode()) 
@@ -468,7 +495,7 @@ void BTSerialReadCmnd()
 				if (!isMeasuring) {
 					// Read humidity and temperature from RHT sensor and save in data packet
 					rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-					pDataMS->SetRHTSensorError(!rc ? 0 : 1);			// set status bit of sensor
+					pDataMS->SetRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			// set status bit of sensor
 					pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
 					DBG_PRN(F("\t TAir= "));	DBG_PRN(fTAir, 1);
 					DBG_PRN(F("\t RH= "));		DBG_PRN(fRHumidityAir, 1);
@@ -482,7 +509,7 @@ void BTSerialReadCmnd()
 				DBG_PRN(F("\t(ReadTemprWater)"));
 				if (!isMeasuring) {
 					// Read temperature and save in data packet
-					pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? 0 : 1);
+					pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
 					pDataMS->SetTemprWater(fTWater);
 					DBG_PRN(F("\t TWater= ")); DBG_PRN(fTWater, 1); DBG_PRN(F("\t PASSED"));
 				}
@@ -545,19 +572,6 @@ void BTSerialReadCmnd()
 				else DBG_PRN(F("\t SKIPED"));
 				break;
 
-			// 163 Set width in millisec of external button press. Default = 100.
-			case cmndSetButtonPressWidth:
-				DBG_PRN(F("\t(SetButtonPressWidth) : ")); DBG_PRN(pCmndMS->GetArg_n());
-				if (!isMeasuring) {
-					// Change parameter
-					noInterrupts();
-					pMSExtButton->SetExtButtonPressWidth(nExtButtonPressWidth = pCmndMS->GetArg_n());
-					interrupts();
-					DBG_PRN(F("\t PASSED"));
-				}
-				else DBG_PRN(F("\t SKIPED"));
-				break;
-
 			// 164 Set antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
 			case cmndSetAntiTinklingOn:
 				DBG_PRN(F("\t(SetAntiTinklingOn) : ")); DBG_PRN(pCmndMS->GetArg_b());
@@ -607,7 +621,7 @@ void BTSerialReadCmnd()
 		dwCountReceiveErr++;
 
 		// Set ReceiveError status bit to 1
-		pDataMS->SetReceiveError(1);
+		pDataMS->SetReceiveError(STATUS_BIT_ERR);
 	}
 }
 
@@ -617,9 +631,41 @@ void BTSerialReadCmnd()
 ///////////////////////////////////////////////////////////////
 void SerialReadCmnd() 
 {
-	int		nInpByte;
+	INT	nInpByte;
 
-	// Ожидание команды из последовательного порта
+	// Ожидание команды из последовательного порта (байт)
+	if ((nInpByte = Serial.read()) > 0)
+	{
+		DBG_PRN_LOGO(strAppName, strVerMajMin);
+		DBG_PRN(F("--->>> Serial PRESSED: "));
+		DBG_PRN(nInpByte);
+
+		// анализируем принятый байт
+		switch (nInpByte)
+		{
+		case 32:	// SPACE - start/stop calculate elapsed time
+			if (!state) // state false - starting counting ticks
+			{
+				noInterrupts();
+				lT1CountStart = lT1Counter;	// save start time
+				interrupts();
+				lCurrCount = 0;	pEMFM->SetCountFull(0);
+			}
+			else		// state true - stop counting
+			{
+				noInterrupts();
+				lT1CountStop = lT1Counter;	// save current time
+				interrupts();
+				lCurrCount = pEMFM->GetCountFull();
+				
+				DBG_PRN(F("\t COUNT = "));				DBG_PRN(lCurrCount, 10);
+				DBG_PRN(F("\t Elapsed time, ms = "));	DBG_PRN((DWORD)((lT1CountStop - lT1CountStart)*fTick_ms), 10);
+			}
+			state = !state;					// change state			break;
+		}
+	}
+
+/*	// Ожидание команды из последовательного порта
 	if (Serial.available() > 0)
 	{
 		DBG_PRN_LOGO(strAppName, strVerMajMin);
@@ -640,5 +686,6 @@ void SerialReadCmnd()
 			lTime = millis();
 		}
 	}
+*/
 }
 #endif 

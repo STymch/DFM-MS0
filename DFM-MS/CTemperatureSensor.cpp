@@ -1,7 +1,7 @@
 #include "CTemperatureSensor.h"
 
 // Constructor
-CTemperatureSensor::CTemperatureSensor(int nDS_pin, int nSensorPrecision)
+CTemperatureSensor::CTemperatureSensor(INT nDS_pin, INT nSensorPrecision)
 {
 	// Initialisate variables
 	m_nDS_PIN = nDS_pin;

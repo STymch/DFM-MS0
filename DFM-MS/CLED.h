@@ -15,14 +15,14 @@
 class CLED
 {
 	protected:
-		int	m_nLED_PIN;		// LED output pin
-		int m_nLED_State;	// Current LED state: LOW, HIGH
+		INT	m_nLED_PIN;		// LED output pin
+		INT m_nLED_State;	// Current LED state: LOW, HIGH
 
 	public:
 		// Constructor, destructor
 		CLED(
-			int nLED_PIN,			// LED output pin
-			int nLED_State = LOW	// Current LED state: LOW, HIGH
+			INT nLED_PIN,			// LED output pin
+			INT nLED_State = LOW	// Current LED state: LOW, HIGH
 		)
 		{
 			// Save parameters

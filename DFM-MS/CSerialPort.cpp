@@ -1,7 +1,3 @@
-// 
-// 
-// 
-
 #include "CSerialPort.h"
 
 // Constructor
@@ -20,7 +16,7 @@ CSerialPort::CSerialPort(INT nTypeCOM, INT nRX, INT nTX) {
 	else m_pSSerial = NULL;
 }
 // Initialisation of COM port: set data rate of COM port
-void CSerialPort::Init(long lDR_COM, BYTE b, UINT nDelay, long lTimeOut)
+void CSerialPort::Init(LONG lDR_COM, BYTE b, UINT nDelay, LONG lTimeOut)
 {
 	m_lDataRate	= lDR_COM;				// Data rate for serial COM
 	m_bContactByte = b;					// Byte for establish contact with remote side
@@ -40,7 +36,7 @@ void CSerialPort::Init(long lDR_COM, BYTE b, UINT nDelay, long lTimeOut)
 }
 
 // Sends a byte with the special value and repeats that until it gets a serial response from the remote sidee. 
-void CSerialPort::EstablishContact() {
+void CSerialPort::EstablishContact() const {
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software)		// Arduino SoftwareSerial COM 
 		while (m_pSSerial->available() <= 0) {
 			m_pSSerial->write(m_bContactByte);		// send a byte
@@ -54,7 +50,7 @@ void CSerialPort::EstablishContact() {
 }
 // Read byte from COM port
 // Return:	-1	- no byte read, else - reading byte 	
-INT CSerialPort::Read() {
+INT CSerialPort::Read() const {
 	INT b = -1;
 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) {
@@ -70,7 +66,7 @@ INT CSerialPort::Read() {
 //			-1 - no bytes available in port,
 //			-2 - not all bytes read, data must be re-read, 
 //			-3 - data size is big.
-INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
+INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) const {
 	INT		len;			// Size of data in array
 	INT		b;				// Reading byte
 	INT		i = 0;			// Index in array
@@ -82,8 +78,6 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 	if (len >= nMaxBuffLen || len == 0) {
 		retcode = -3;	// Data size is wrong
 		pBuffer[i++] = (BYTE)len;
-//		Serial.println(); Serial.print("Read: Wrong len="); Serial.print(len); Serial.print("\tBytes=");
-//		while ((b = Read()) >= 0) { Serial.print("0x"); Serial.print(b, HEX); Serial.print(" "); }
 	}
 	else 
 		if (len > 0) {
@@ -98,13 +92,7 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 
 			if (i == len + 1)	retcode = len + 1;	// Read all bytes successfully
 			else {
-				retcode = -2;					// Timeout when read byte - not all bytes read
-//				Serial.println(); Serial.print("Read: Wrong Data, len="); Serial.print(len); 
-//				Serial.print("\tBytes="); 
-//				for(int j = 1; j < i; ++j )
-//				{
-//					Serial.print("0x"); Serial.print(pBuffer[j], HEX); Serial.print(" ");
-//				}
+				retcode = -2;						// Timeout when read byte - not all bytes read
 			}
 		}
 	
@@ -112,12 +100,12 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) {
 }
 
 // Write byte into COM port
-void CSerialPort::Write(BYTE bData) {
+void CSerialPort::Write(BYTE bData) const {
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) m_pSSerial->write(bData);	// Arduino SoftwareSerial COM 
 	else Serial.write(bData);												// Arduino Hardware COM port
 }
 // Write bytes from array into COM port
-void CSerialPort::Write(BYTE *pBuffer, INT nLength) {
+void CSerialPort::Write(BYTE *pBuffer, INT nLength) const {
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) m_pSSerial->write(pBuffer, nLength);	// Arduino SoftwareSerial COM 
 	else Serial.write(pBuffer, nLength);											// Arduino Hardware COM port
 }

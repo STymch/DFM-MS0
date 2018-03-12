@@ -2,9 +2,9 @@
 
 // Get RH and temperature from all sensors
 // Return:	0 - OK, -1 - sensor error
-int	CRHTSensor::GetRHT(float& fHumidity, float& fTemperature)
+INT	CRHTSensor::GetRHT(FLOAT& fHumidity, FLOAT& fTemperature)
 {
-	int rc = 0;		// OK
+	INT rc = 0;		// OK
 					
 	// No sensor detected
 	m_nSensorModel = -1;

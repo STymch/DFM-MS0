@@ -15,13 +15,13 @@
 class CPowerDC
 {
 protected:
-	int m_nPowerInput_PIN;		// Power input analog pin
-	int	m_nPowerOnOff_PIN;		// Power on/off output digital pin
-	int	m_nDelayAfterPowerON;	// Wait for Power ON, millis
+	INT m_nPowerInput_PIN;		// Power input analog pin
+	INT	m_nPowerOnOff_PIN;		// Power on/off output digital pin
+	INT	m_nDelayAfterPowerON;	// Wait for Power ON, millis
 
 public:
 	// Constructor, destructor
-	CPowerDC(int nPowerInput_PIN, int nPowerOnOff_PIN, int nDelayAfterPowerON) :
+	CPowerDC(INT nPowerInput_PIN, INT nPowerOnOff_PIN, INT nDelayAfterPowerON) :
 		m_nPowerInput_PIN(nPowerInput_PIN), m_nPowerOnOff_PIN(nPowerOnOff_PIN), m_nDelayAfterPowerON(nDelayAfterPowerON)
 	{
 		// Declare the PowerOnOff pin as an OUTPUT:
