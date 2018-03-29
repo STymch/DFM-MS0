@@ -54,7 +54,8 @@ INT CSerialPort::Read() const {
 	INT b = -1;
 
 	if (m_nTypeOfCOM_BT == isCOMofBT_Software) {
-		if (m_pSSerial->available() > 0) b = m_pSSerial->read();// Arduino SoftwareSerial COM 
+		m_pSSerial->listen();									// swtch software serial port
+		if (m_pSSerial->available() > 0) b = m_pSSerial->read();// Arduino SoftwareSerial COM
 	}
 	else
 		if (Serial.available() > 0 ) b = Serial.read();			// Arduino Hardware COM port
@@ -72,7 +73,7 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) const {
 	INT		i = 0;			// Index in array
 	DWORD	dwTime;			// Time in microsec
 	INT		retcode = -1;	// Return code - no bytes available in port
-
+	
 	// If available - read first byte = size of data
 	len = Read();
 	if (len >= nMaxBuffLen || len == 0) {
@@ -95,7 +96,7 @@ INT CSerialPort::Read(BYTE *pBuffer, INT nMaxBuffLen) const {
 				retcode = -2;						// Timeout when read byte - not all bytes read
 			}
 		}
-	
+
 	return retcode;
 }
 

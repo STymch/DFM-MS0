@@ -63,7 +63,6 @@ const LONG  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const LONG  DR_BT_COM		= 38400;	// Data rate for software COM of Bluetooth HC-0x, bps
 const LONG	BT_READ_TIMEOUT = 100;		// Timeout for serial port Bluetooth data read, millis
 const LONG  DR_GPS_COM		= 9600;		// Data rate for software COM of serial GPS module, bps
-const LONG	GPS_READ_TIMEOUT= 1000;		// Timeout waiting GPS data
 
 // Metric parameters
 const DWORD	PULSE_UNIT_LTR	= 1000;		// Quantity pulse in 1 ltr
@@ -104,12 +103,12 @@ INT		nLEDStateInit		= LOW;		// Init LEDs state
 BYTE	pBuff[DATA_LEN+1];				// Buffer for save sending data
 
 FLOAT	fTick_ms,				// Millisecs in timer tick
-fTAir,					// Air Temperature
-fRHumidityAir,			// Air Relative Humidity
-fTWater,				// Water Temperature
-fLatitude = 0.0,		// 48.476017,	// GPS Latitude
-fLongitude = 0.0,		// 35.014864,	// GPS Longitude
-fQ = 0.0;				// Current Volume Flow of Water
+		fTAir,					// Air Temperature
+		fRHumidityAir,			// Air Relative Humidity
+		fTWater,				// Water Temperature
+		fLatitude = 0.0,		// 48.476017,	// GPS Latitude
+		fLongitude = 0.0,		// 35.014864,	// GPS Longitude
+		fQ = 0.0;				// Current Volume Flow of Water
 
 DWORD	lCount = 0, lCurrCount, lTime;
 
@@ -147,10 +146,7 @@ CLED				*pExt_LED;	// External LED
 void setup() 
 {
 	INT rc;
-		// --==-- Arduino Timer 1//	Timer1.initialize(lT1Period);			// initialize Timer 1, and set period//	Timer1.attachInterrupt(Timer1Callback);	// attaches Timer 1 overflow ISR function and enable a timer overflow interrupt
-	fTick_ms = lT1Period / 1000.0f;			// ticks in ms
-
-	// --==-- Hardware serial port
+		// --==-- Hardware serial port
 	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRNL(F(": SETUP Starting ..."));
@@ -172,14 +168,25 @@ void setup()
 	// --==-- Send data packet object
 	// Create object
 	pDataMS = new CDataMS;
+	
 	// Clear status byte
 	pDataMS->SetStatus(STATUS_BIT_OK);
+	// Set ReceiveError bit to error state
+	pDataMS->SetReceiveError(STATUS_BIT_ERR);
+	
+	// Clear time interval in data packet
+	pDataMS->SetTimeInt(0);
+
 	// Set Power DC value
 	pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 
 	// --==-- Receive commands object
 	// Create object
 	pCmndMS = new CCmndMS;
+
+	// --==-- LEDs 
+	pInt_LED = new CLED(INT_LED_PIN, nLEDStateInit);
+	pExt_LED = new CLED(EXT_LED_PIN, nLEDStateInit);
 
 	// --==-- Flowmeter EMFM
 	// Create object
@@ -234,7 +241,7 @@ void setup()
 
 	// --==-- GPS module
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(F(": GPS module: "));
-	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM, GPS_READ_TIMEOUT);
+	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM);
 	// Waiting...
 	delay(2000);
 	// Get position from GPS
@@ -249,9 +256,8 @@ void setup()
 	pDataMS->SetGPS_LAT(fLatitude);									// set GPS Latitude
 	pDataMS->SetGPS_LON(fLongitude);								// set GPS Longitude
 
-	// --==-- LEDs 
-	pInt_LED = new CLED(INT_LED_PIN, nLEDStateInit);
-	pExt_LED = new CLED(EXT_LED_PIN, nLEDStateInit);
+	// --==-- Arduino Timer 1	Timer1.initialize(lT1Period);			// initialize Timer 1, and set period	Timer1.attachInterrupt(Timer1Callback);	// attaches Timer 1 overflow ISR function and enable a timer overflow interrupt
+	fTick_ms = lT1Period / 1000.0f;			// ticks in ms
 
 	// --==-- Delay before starting main loop
 	DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRNL(F(": MAIN Starting ..."));
@@ -277,14 +283,19 @@ void loop()
 	// Get data from sensors T, RHT of air
 	if (lCount % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isMeasuring)
 	{
-		// Read humidity and temperature from RHT sensor and save in data packet
-		INT rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-		pDataMS->SetRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			// set status bit of sensor
-		pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
-
+		if (pDataMS->GetRHTSensorError() == STATUS_BIT_OK)
+		{
+			INT rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
+			pDataMS->SetRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			// set status bit of sensor
+			pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
+		}
+		
 		// Read water temperature and save in data packet
-		pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
-		pDataMS->SetTemprWater(fTWater);
+		if (pDataMS->GetTempSensorError() == STATUS_BIT_OK)
+		{
+			pDataMS->SetTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
+			pDataMS->SetTemprWater(fTWater);
+		}
 	}
 
 #endif	
@@ -314,18 +325,20 @@ void loop()
 		// Get Power DC value and save in data packet
 		if (!isMeasuring) pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 		
+//		DBG_PRN(F("GPS isNewData="));	DBG_PRN(pGPS->isNewData());
+//		DBG_PRN(F("isMeasuring="));	DBG_PRN(isMeasuring);
+//		DBG_PRN(F("GPSError()="));	DBG_PRN(pDataMS->GetGPSError());
 		// Get GPS data
-		if (!pGPS->isNewData() && !isMeasuring)
+		if (!pGPS->isNewData() && !isMeasuring && pDataMS->GetGPSError() == STATUS_BIT_OK)
 		{
-			INT rc = pGPS->GetGPS_Position(fLatitude, fLongitude);
-			pDataMS->SetGPSError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
-			pDataMS->SetGPS_LAT(fLatitude);								// set GPS Latitude
-			pDataMS->SetGPS_LON(fLongitude);							// set GPS Longitude
+			pGPS->GetGPS_Position(fLatitude, fLongitude);	// get latitude, longitude
+			pDataMS->SetGPS_LAT(fLatitude);					// set GPS Latitude
+			pDataMS->SetGPS_LON(fLongitude);				// set GPS Longitude
 		}
 
 		// Debug Print data
 		DBG_PRN_LOGO(strAppName, strVerMajMin);	DBG_PRN(lCount);
-		DBG_PRN(F("\tTime="));					DBG_PRN(lTimeBegin, 10);
+//		DBG_PRN(F("\tTime="));					DBG_PRN(lTimeBegin, 10);
 		DBG_PRN(F("\tSt=0x"));					DBG_PRN(pDataMS->GetStatus(), HEX);
 		DBG_PRN(F("\tCF="));					DBG_PRN(pEMFM->GetCountFull(), 10);
 		DBG_PRN(F("\tCC="));					DBG_PRN(pEMFM->GetCountCurr(), 10);
@@ -473,6 +486,8 @@ void BTSerialReadCmnd()
 					dwCountCurr = DWORD(-1);// set -1 for current counter
 					isMeasuring = false;	// set flag of measuring OFF
 					pEMFM->StopTimer();		// stop Timer
+					// Clear time interval in data packet
+					pDataMS->SetTimeInt(0);
 				}
 				else
 				{

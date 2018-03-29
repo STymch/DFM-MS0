@@ -35,7 +35,7 @@ void loop()
 	unsigned short sentences, failed;
 
 	// For one second we parse GPS data and report some key values
-	for (unsigned long start = millis(); millis() - start < 1000;)
+//	for (unsigned long start = millis(); millis() - start < 1000;)
 	{
 		while (ss.available())
 		{

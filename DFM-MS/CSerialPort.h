@@ -34,7 +34,6 @@ public:
 
 	// Constructor, destructor
 	CSerialPort(INT nTypeCOM, INT nRX, INT nTX);
-	CSerialPort() { m_pSSerial = NULL; m_nTypeOfCOM_BT = 0;  m_nRX_PIN = 0; m_nTX_PIN = 1; }
 	~CSerialPort() { }
 	
 	// --- MODIFYING methods

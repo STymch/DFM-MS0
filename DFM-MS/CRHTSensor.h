@@ -63,7 +63,7 @@ public:
 		m_pDHT = new DHT(m_nDHT_PIN, m_nDHT_TYPE);
 		m_pDHT->begin();
 	}
-	~CRHTSensor() { delete m_pDHT; delete m_pHTU; }
+	~CRHTSensor() { }
 	
 	// --- CONSTANT methods
 	// Get RHT sensor model, Return:	0 - HTU, 1 - DHTxx,  -1 - No sensor

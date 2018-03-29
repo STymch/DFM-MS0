@@ -34,15 +34,13 @@ BOOL CGPS::WaitNewData()
 	m_isNewData = false;
 
 	// Waiting new data from GPS
-	for (DWORD start = millis(); millis() - start < m_lTWaitNewData;)
+	m_pSerialGPS->listen();	// swtch software serial port
+	while (m_pSerialGPS->available())
 	{
-		while (m_pSerialGPS->available())
-		{
-			// Read data from serial port GPS
-			char c = m_pSerialGPS->read();
-			if (m_pGPS->encode(c)) // Did a new valid sentence come in?
-				m_isNewData = true;
-		}
+		// Read data from serial port GPS
+		char c = m_pSerialGPS->read();
+		if (m_pGPS->encode(c)) // Did a new valid sentence come in?
+			m_isNewData = true;
 	}
 	return m_isNewData;
 }
