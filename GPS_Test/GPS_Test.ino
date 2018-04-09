@@ -77,3 +77,92 @@ void loop()
 	if (chars == 0)
 		Serial.println("** No characters received from GPS: check wiring **");
 }
+
+// Code for Reading GPS Coordinates
+// Building Arduino Projects for the Internet of Things: Experiments with Real-World Applications
+// Copyright © 2016 by Adeel Javed
+/*
+TinyGPS gps;
+SoftwareSerial ss(2, 3); // GPS TX = Arduino D2, GPS RX = Arduino D3
+
+static void smartdelay(unsigned long ms)
+{
+	unsigned long start = millis();
+	do
+	{
+		while (ss.available())
+			gps.encode(ss.read());
+	} while (millis() - start < ms);
+}
+
+void getGPSCoordinates()
+{
+	float latitude;
+	float longitude;
+	unsigned long age = 0;
+	gps.f_get_position(&latitude, &longitude, &age);
+	smartdelay(10000);
+	// Transmit sensor data
+	if (latitude != TinyGPS::GPS_INVALID_F_ANGLE &&
+		longitude != TinyGPS::GPS_INVALID_F_ANGLE)
+	{
+		transmitSensorData(latitude, longitude);
+	}
+	else
+	{
+		Serial.println("[INFO] Searching for Satellite");
+	}
+}
+*/
+/*
+Проект 33: Модуль GPS. Принцип работы, подключение, примеры
+http://arduino-kit.ru/textpage_ws/pages_ws/proekt-33_--modul-gps.-printsip-rabotyi-podklyuchenie-primeryi
+
+#include <SoftwareSerial.h>
+#include <TinyGPS.h>
+TinyGPS gps;
+SoftwareSerial gpsSerial(7, 8);
+bool newdata = false;
+unsigned long start;
+long lat, lon;
+unsigned long time, date;
+void setup()
+{
+	gpsSerial.begin(9600); // скорость обмена с GPS-приемником
+	Serial.begin(9600);
+	Serial.println("Waiting data of GPS...");
+}
+void loop()
+{
+	// задержка в секунду между обновлениями координат
+	if (millis() - start > 1000)
+	{
+		newdata = readgps();
+		if (newdata)
+		{
+			start = millis();
+			gps.get_position(&lat, &lon);
+			gps.get_datetime(&date, &time);
+			Serial.print("Lat: "); Serial.print(lat);
+			Serial.print(" Long: "); Serial.print(lon);
+			Serial.print(" Date: "); Serial.print(date);
+			Serial.print(" Time: "); Serial.println(time);
+		}
+	}
+}
+// проверка наличия данных
+bool readgps()
+{
+	while (gpsSerial.available())
+	{
+		int b = gpsSerial.read();
+		//в TinyGPS есть ошибка: не обрабатываются данные с \r и \n
+		if ('\r' != b)
+		{
+			if (gps.encode(b))
+				return true;
+		}
+	}
+	return false;
+}
+*/

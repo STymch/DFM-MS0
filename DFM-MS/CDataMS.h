@@ -41,16 +41,16 @@ protected:
 					INT m_btNU2					: 1;// 7 - not used
 				};
 			};
-			FLOAT	m_fTemprAir;			// Temperature of air, C							4
-			FLOAT	m_fRHumidityAir;		// Compensated Humidity, %							4
-			FLOAT	m_fTemprWater;			// Temperature of water, C							4
-			UINT	m_nPowerU;				// Power voltage, V									2
-			FLOAT	m_fLAT;					// GPS Latitude										4
-			FLOAT	m_fLON;					// GPS Longitude									4
-			volatile FLOAT	m_fQ;			// Instant flow m3/h								4
-			volatile DWORD	m_dwTimeInt;	// Time's interval, millis							4
-			volatile DWORD	m_dwCountFull;	// Full pulse counter, incremental					4
-			volatile DWORD	m_dwCountCurr;	// Current pulse counter for tests, decremental		4	
+			FLOAT	m_fTemprAir;	// Temperature of air, C							4
+			FLOAT	m_fRHumidityAir;// Compensated Humidity, %							4
+			FLOAT	m_fTemprWater;	// Temperature of water, C							4
+			UINT	m_nPowerU;		// Power voltage, V									2
+			FLOAT	m_fLAT;			// GPS Latitude										4
+			FLOAT	m_fLON;			// GPS Longitude									4
+			FLOAT	m_fQ;			// Instant flow m3/h								4
+			DWORD	m_dwTime;		// Time, millis										4
+			DWORD	m_dwCounterAll;	// All pulse counter, incremental					4
+			DWORD	m_dwCounterCurr;// Current pulse counter for tests, decremental		4	
 		};
 	};
 public:
@@ -60,29 +60,29 @@ public:
 
 	// --- CONSTANT methods
 	// Get data from object
-	BYTE	GetLen()			const	{ return m_bLen;				}
-	FLOAT	GetTemprAir()		const	{ return m_fTemprAir;			}
-	FLOAT	GetRHumidityAir()	const	{ return m_fRHumidityAir;		}
-	FLOAT	GetTemprWater()		const	{ return m_fTemprWater;			}
-	UINT	GetPowerU()			const	{ return m_nPowerU;				}
-	FLOAT	GetGPS_LAT()		const	{ return m_fLAT;				}
-	FLOAT	GetGPS_LON()		const	{ return m_fLON;				}
-	FLOAT	GetQ()				const	{ return m_fQ;					}
-	DWORD	GetTimeInt()		const	{ return m_dwTimeInt;			}
-	DWORD	GetCountFull()		const	{ return m_dwCountFull;			}
-	DWORD	GetCountCurr()		const	{ return m_dwCountCurr;			}
+	BYTE	GetLen()			const	{ return m_bLen;		 }
+	FLOAT	GetTemprAir()		const	{ return m_fTemprAir;	 }
+	FLOAT	GetRHumidityAir()	const	{ return m_fRHumidityAir;}
+	FLOAT	GetTemprWater()		const	{ return m_fTemprWater;	 }
+	UINT	GetPowerU()			const	{ return m_nPowerU;		 }
+	FLOAT	GetGPS_LAT()		const	{ return m_fLAT;		 }
+	FLOAT	GetGPS_LON()		const	{ return m_fLON;		 }
+	FLOAT	GetQ()				const	{ return m_fQ;			 }
+	DWORD	GetTime()			const	{ return m_dwTime;		 }
+	DWORD	GetCounterAll()		const	{ return m_dwCounterAll; }
+	DWORD	GetCounterCurr()	const	{ return m_dwCounterCurr;}
 
 	// Get status bits
-	BYTE	GetStatus()			const	{ return m_bStatus;				}
-	INT		GetReceiveError()	const	{ return m_btReceiveError;		}
-	INT		GetRHTSensorError() const	{ return m_btRHTSensorError;	}
-	INT		GetTempSensorError()const	{ return m_btTempSensorError;	}
-	INT		GetEMFM_FQH()		const	{ return m_btEMFM_FQH;			}
-	INT		GetEMFM_FQL()		const	{ return m_btEMFM_FQL;			}
-	INT		GetGPSError()		const	{ return m_btGPSError;			}
+	BYTE	Get_bStatus()			const	{ return m_bStatus;				}
+	INT		Get_btReceiveError()	const	{ return m_btReceiveError;		}
+	INT		Get_btRHTSensorError()	const	{ return m_btRHTSensorError;	}
+	INT		Get_btTempSensorError()	const	{ return m_btTempSensorError;	}
+	INT		Get_btEMFM_FQH()		const	{ return m_btEMFM_FQH;			}
+	INT		Get_btEMFM_FQL()		const	{ return m_btEMFM_FQL;			}
+	INT		Get_btGPSError()		const	{ return m_btGPSError;			}
 
 	// --- MODIFYING methods
-	BYTE*	GetDataMS() { return m_pDataMS; }
+	BYTE*	GetDataMS()					{ return m_pDataMS; }
 	// Set data for object
 	void	SetDataMS(BYTE b)			{ for (INT i = 1; i <= m_bLen; m_pDataMS[i++] = b);			}
 	void	SetDataMS(BYTE *pBuff)		{ for (INT i = 1; i <= m_bLen; m_pDataMS[i++] = (*pBuff)++);}
@@ -94,18 +94,18 @@ public:
 	void	SetGPS_LAT(FLOAT fLAT)		{ m_fLAT = fLAT;				}
 	void	SetGPS_LON(FLOAT fLON)		{ m_fLON = fLON;				}
 	void	SetQ(FLOAT fQ)				{ m_fQ = fQ;					}
-	void	SetTimeInt(DWORD dwTime)	{ m_dwTimeInt = dwTime;			}
-	void	SetCountFull(DWORD dwC)		{ m_dwCountFull = dwC;			}
-	void	SetCountCurr(DWORD dwC)		{ m_dwCountCurr = dwC;			}
+	void	SetTime(DWORD dwTime)		{ m_dwTime = dwTime;			}
+	void	SetCounterAll(DWORD dwC)	{ m_dwCounterAll = dwC;			}
+	void	SetCounterCurr(DWORD dwC)	{ m_dwCounterCurr = dwC;		}
 
 	// Set status bits
-	void	SetStatus(BYTE bStatus)		{ m_bStatus = bStatus;			}
-	void	SetReceiveError(INT bit)	{ m_btReceiveError = bit;		}
-	void	SetRHTSensorError(INT bit)	{ m_btRHTSensorError = bit;		}
-	void	SetTempSensorError(INT bit)	{ m_btTempSensorError = bit;	}
-	void	SetEMFM_FQH(INT bit)		{ m_btEMFM_FQH = bit;			}
-	void	SetEMFM_FQL(INT bit)		{ m_btEMFM_FQL = bit;			}
-	void	SetGPSError(INT bit)		{ m_btGPSError = bit;			}
+	void	Set_bStatus(BYTE bStatus)		{ m_bStatus = bStatus;			}
+	void	Set_btReceiveError(INT bit)		{ m_btReceiveError = bit;		}
+	void	Set_btRHTSensorError(INT bit)	{ m_btRHTSensorError = bit;		}
+	void	Set_btTempSensorError(INT bit)	{ m_btTempSensorError = bit;	}
+	void	Set_btEMFM_FQH(INT bit)			{ m_btEMFM_FQH = bit;			}
+	void	Set_btEMFM_FQL(INT bit)			{ m_btEMFM_FQL = bit;			}
+	void	Set_btGPSError(INT bit)			{ m_btGPSError = bit;			}
 };
 
 ///////////////////////////////////////////////////////
@@ -114,10 +114,11 @@ public:
 const INT		CMND_LEN = 5;				// Max size of command in bytes
 // Command codes
 enum Cmnd	{	// DFM_MS control commands
-				cmndSetCount		= 0x43,	// DWORD. Set current counter, if 0 - be set in DWORD(-1)
-				cmndReadRHT			= 0x48,	// Read humidity and temperature of air from sensor			
+				cmndSetCounter		= 0x43,	// DWORD. Set current counter, if 0 - be set DWORD(-1)
+				cmndReadRHT			= 0x48,	// Read humidity and temperature of air from sensor	
+				cmndGetLocation		= 0x4C,	// Get location from GPS	
 				cmndPowerOff		= 0x50,	// Execute DFM-MS Power OFF
-				cmndTestReceive		= 0x52,	// Test receive data from CP to MS
+				cmndReqDataMS		= 0x52,	// Request data packet from MS
 				cmndReadTemprWater	= 0x54,	// Read water temperature from sensor
 				
 				// Set parameters value commands
