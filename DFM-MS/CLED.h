@@ -39,7 +39,11 @@ class CLED
 
 		// Methods
 		// Blink LED
-		void	Blink() { m_nLED_State = !m_nLED_State;	digitalWrite(m_nLED_PIN, m_nLED_State); }
+		void	Blink()		{ m_nLED_State = !m_nLED_State;	digitalWrite(m_nLED_PIN, m_nLED_State); }
+		// Turn ON LED
+		void	TurnON()	{ m_nLED_State = HIGH; digitalWrite(m_nLED_PIN, m_nLED_State);			}
+		// Turn OFF LED
+		void	TurnOFF()	{ m_nLED_State = LOW; digitalWrite(m_nLED_PIN, m_nLED_State);			}
 };
 #endif
 

@@ -74,7 +74,7 @@ const INT	STATUS_BIT_ERR	= 1;		// Status bit: error state
 UINT		nVerMaj			= 1;		// Major version number
 UINT		nVerMin			= 0;		// Minor version number
 UINT		nVerStatus		= 2;		// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-UINT		nVerBuild		= 78;		// Build number, from SVC system
+UINT		nVerBuild		= 79;		// Build number, from SVC system
 CHAR		strVer[28]		= "";		// Full version info string
 
 volatile DWORD	dwCounterPulseAll = 0;	// Counter of all output pulses from EMFM/Generator from turn on DFM-MS
@@ -85,8 +85,9 @@ DWORD			dwCounterPulseCurrCopy;	// For copy
 DWORD	dwPulseFactor		= 1000;		// Flowmeter pulse factor, pulses in 1 ltr
 DWORD	lLoopMSPeriod		= 200;		// DFM-MS main loop period, millis
 DWORD	lDebugPrnPeriod		= 2000;		// Debug print period
-DWORD	lGetSensorsPeriod	= 60000;	// Get sensors of T, RHT Air period
+DWORD	lGetSensorsPeriod	= 30000;	// Get sensors of T, RHT Air period
 DWORD	lInt4CalcQ			= 1000;		// Interval for calculate instant flow Q, millis
+DWORD	lCoordUpdPeriod		= 1000;		// Delay between coordinate updates (GPS)
 INT		nDelayAfterPowerON	= 2000;		// Wait for Power ON, millis
 
 DWORD	dwCountReceiveErr	= 0;		// Counter of bad received packet
@@ -97,6 +98,7 @@ INT		nPULSE_INT_MODE		= FALLING;	// Mode of interrupt of EMFM pulse out: LOW, CH
 void	(*pISR)();						// Pointer to ISR callback function of EMFM pulse out 
 
 INT		nTypeRHTSensor		= snsrDHT21;// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+INT		nStGPS				= -1;		// State of GPS subsystem: -1 - module not present; 1 - module present, no location data; 0 - success, present location data
 
 volatile BOOL	isTestRun = false;		// Test state flag: true - test is running, false - test not running now
 BOOL			isTestRunCopy;			// For copy
@@ -144,37 +146,41 @@ void setup()
 	FLOAT	fTAir,					// Air Temperature
 			fRHumidityAir,			// Air Relative Humidity
 			fTWater,				// Water Temperature
-			fLatitude = 0.0,		// GPS Latitude
-			fLongitude = 0.0;		// GPS Longitude
+			fLatitude = -1.0,		// GPS Latitude
+			fLongitude = -1.0;		// GPS Longitude
 	INT		nLEDStateInit = LOW;	// Init LEDs state
 	INT		rc;						// return code
-	CHAR	strTemp[6];				// temporary string	// --==-- Save application version info into string
-	strcat(strVer, itoa(nVerMaj,	strTemp, 10));	strcat(strVer, ".");
-	strcat(strVer, itoa(nVerMin,	strTemp, 10));	strcat(strVer, ".");
-	if(nVerStatus == 0) strcat(strVer, "a");
-	else	if (nVerStatus == 1) strcat(strVer, "b");
-			else	if (nVerStatus == 2) strcat(strVer, "RC");
-					else strcat(strVer, "RTM");
-	strcat(strVer, ".");
-	strcat(strVer, itoa(nVerBuild,	strTemp, 10)); strcat(strVer, " ");
-
-	// --==-- Hardware serial port
+	CHAR	strTemp[6];				// temporary string	// --==-- Hardware serial port
 	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": SETUP Starting ..."));
-	
+		
 	// --==-- EEPROM object
 	pCDataEEPROM = new CDataEEPROM;
 	// Read data from EEPROM
 	EEPROM_ReadData(*pCDataEEPROM);
 	
+	// --==-- Save application version info into string
+	strcat(strVer, itoa(nVerMaj, strTemp, 10));	strcat(strVer, ".");
+	strcat(strVer, itoa(nVerMin, strTemp, 10));	strcat(strVer, ".");
+	if (nVerStatus == 0) strcat(strVer, "a");
+	else	if (nVerStatus == 1) strcat(strVer, "b");
+			else	if (nVerStatus == 2) strcat(strVer, "RC");
+					else strcat(strVer, "RTM");
+	strcat(strVer, ".");
+	strcat(strVer, itoa(nVerBuild, strTemp, 10)); strcat(strVer, " ");
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": SETUP STARTING ----->>>>>"));
+	
+	// Print data was read from EEPROM
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": DATA WAS READ FROM EEPROM:"));
+	EEPROM_PrintData(*pCDataEEPROM);
+	
 	// --==-- Power DC Control object
 	// Create object & initialization
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": PowerDC ON: "));
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> POWER DC:"));
 	pPowerDC = new CPowerDC(POWER_INPUT_PIN, POWER_ON_OFF_PIN, nDelayAfterPowerON);
 	// Power ON
 	pPowerDC->PowerON();
-	DBG_PRN(F("\t PASSED"));
+	DBG_PRN(F("\t\t PASSED (ON)"));
 
 	// --==-- Bluetooth serial port
 	// Create object & initialization
@@ -215,64 +221,64 @@ void setup()
 	pDataMS->SetQ(pEMFM->GetQ());
 
 		// --==-- Humidity & temperature sensor
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": RHT sensor: "));
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> RHT AIR SENSOR:"));
 	pRHTSensor = new CRHTSensor(DHTxx_PIN, nTypeRHTSensor);
 	// Get RH and temperature from sensor
 	if (!(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)))
 	{
-		DBG_PRN(F("OK"));
-		DBG_PRN(F("\t Model: "));		DBG_PRN(pRHTSensor->GetSensorModel());
-		DBG_PRN(F("\t TempAir: "));		DBG_PRN(fTAir, 1);
-		DBG_PRN(F("\t Humidity: "));	DBG_PRNL(fRHumidityAir, 1);
+		DBG_PRN(F("\t\t PASSED"));
+		DBG_PRN(F("\t\t MODEL: "));			DBG_PRN(pRHTSensor->GetSensorModel());
+		DBG_PRN(F("\t TAir (C): "));		DBG_PRN(fTAir, 1);
+		DBG_PRN(F("\t Humidity (%): "));	DBG_PRN(fRHumidityAir, 1);
 	}
 	else {
-		DBG_PRN(F("NOT DETECTED! \t Model: ")); DBG_PRN(pRHTSensor->GetSensorModel());
+		DBG_PRN(F("\t\t NOT DETECTED! \t MODEL: ")); DBG_PRN(pRHTSensor->GetSensorModel());
 	}	
 
 	pDataMS->Set_btRHTSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit RHT sensor
-	pDataMS->SetTemprAir(fTAir);										// set temperature of air
-	pDataMS->SetRHumidityAir(fRHumidityAir);							// set humidity
+	pDataMS->SetTemprAir(fTAir);											// set temperature of air
+	pDataMS->SetRHumidityAir(fRHumidityAir);								// set humidity
 
 	// --==-- Temperature of water sensor
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": Temperature of water sensor: "));
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> T WATER SENSOR: "));
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, TEMPERATURE_PRECISION);
 	// Waiting...
 	delay(2000);
 	// Get temperature from sensor
 	if ( !(rc = pTemperatureSensor->GetTemperature(fTWater)) ) {
-		DBG_PRN(F("OK"));
-		DBG_PRN(F("\t NumOfDev:"));		DBG_PRN(pTemperatureSensor->GetNumberOfDevices());
-		DBG_PRN(F("\t Model: "));		DBG_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
-		DBG_PRN(F("\t PPawer: "));		DBG_PRN(pTemperatureSensor->isParasitePower());
-		DBG_PRN(F("\t TempWater: "));	DBG_PRNL(fTWater, 1);
+		DBG_PRN(F("\t PASSED"));
+		DBG_PRN(F("\t\t NUMBER OF DEV:"));DBG_PRN(pTemperatureSensor->GetNumberOfDevices());
+		DBG_PRN(F("\t MODEL: "));		DBG_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
+		DBG_PRN(F("\t PPOWER: "));		DBG_PRN(pTemperatureSensor->isParasitePower());
+		DBG_PRN(F("\t T (C): "));		DBG_PRN(fTWater, 1);
 	}
-	else	DBG_PRNL(DS_MODEL_NAME[0]);
+	else	DBG_PRN(F("\t NOT DETECTED"));
 	
 	pDataMS->Set_btTempSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit
-	pDataMS->SetTemprWater(fTWater);									// set water temperature
+	pDataMS->SetTemprWater(fTWater);										// set water temperature
 
-	// --==-- GPS module
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": GPS module: "));
-	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM);
+	// --==-- GPS subsystem
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> GPS: "));
+	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM, lCoordUpdPeriod);
 	// Waiting...
-	delay(2000);
+	delay(lCoordUpdPeriod);
 	// Get position from GPS
-	if (!(rc = pGPS->GetGPS_Position(fLatitude, fLongitude))) {
-		DBG_PRN(F("OK"));
-		DBG_PRN(F("\t LAT: "));		DBG_PRN(fLatitude);
-		DBG_PRN(F("\t LON: "));		DBG_PRN(fLongitude);
+	if ((nStGPS = pGPS->GetGPS_Position(fLatitude, fLongitude)) >= 0) {
+		DBG_PRN(F("\t\t\t PASSED"));
+		DBG_PRN(F("\t\t LAT: "));		DBG_PRN(fLatitude);
+		DBG_PRN(F("\t LON: "));		DBG_PRNL(fLongitude);
 	}
 	else { // GPS module not present
 		fLatitude = fLongitude = -1.0;
-		DBG_PRN(F("NOT DETECTED!"));
+		DBG_PRNL(F("\t\t\t NOT DETECTED"));
 	}
 
-	pDataMS->Set_btGPSError (!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
-	pDataMS->SetGPS_LAT(fLatitude);									// set GPS Latitude
-	pDataMS->SetGPS_LON(fLongitude);								// set GPS Longitude
+	pDataMS->Set_btGPSError (nStGPS >= 0 ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
+	pDataMS->SetGPS_LAT(fLatitude);											// set GPS Latitude
+	pDataMS->SetGPS_LON(fLongitude);										// set GPS Longitude
 
 	// --==-- Delay before starting main loop
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": MAIN Starting ..."));
+	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": LOOP STARTING ----->>>>>"));
 }
 
 ///////////////////////////////////////////////////////////////
@@ -281,6 +287,8 @@ void setup()
 void loop() {
 	// Loops counter
 	static DWORD	lCounterLoops = 0;
+	// Flag - was there a data request from DFM-CP
+	static BOOL isReqDataGet = false;
 	// For save copy of isReqData
 	BOOL isReqDataCopy;
 
@@ -328,12 +336,48 @@ void loop() {
 
 		// Clear request data flag
 		COPY_NOINT(isReqData, false);
+		
+		// Set flag - was there a data request from DFM-CP
+		isReqDataGet = true;
 	}
 
-	// Blink LEDs
-	if (lCounterLoops % (lDebugPrnPeriod / lLoopMSPeriod) == 0) {
-		// Blink internal LED 
-		pInt_LED->Blink();
+	// GPS subsystem: get location
+	if(lCounterLoops % (lCoordUpdPeriod / lLoopMSPeriod) == 0 && !isReqDataGet && nStGPS != 0)
+	{	
+		FLOAT fLatitude, fLongitude; // Latitude, longitude
+
+		// Get location and set state of GPS subsystem
+		nStGPS = pGPS->GetGPS_Position(fLatitude, fLongitude);
+		
+		// Get location, set into DataMS & set GPS status bit
+		pDataMS->Set_btGPSError(nStGPS >= 0 ? STATUS_BIT_OK : STATUS_BIT_ERR);
+		pDataMS->SetGPS_LAT(fLatitude);		// set GPS Latitude
+		pDataMS->SetGPS_LON(fLongitude);	// set GPS Longitude
+	}
+	
+	// LEDs control
+	if (lCounterLoops % (lCoordUpdPeriod / lLoopMSPeriod) == 0) {
+		// Internal LED 
+//		pInt_LED->Blink();
+
+		// External LED
+		INT factor;		// external LED blink factor
+		switch (nStGPS) {
+			case -1: {
+				factor = 3;	// no GPS module (3 sec period)
+				break;
+			}
+			case 1: {
+				factor = 2;	// GPS module present, no coordinates (2 sec period)
+				break;
+			}
+			default: {
+				factor = 1;	// coordinates present (1 sec period)
+				break;
+			}
+		}
+		// Blink external LED
+		if (lCounterLoops % (factor * lCoordUpdPeriod / lLoopMSPeriod) == 0) pInt_LED->Blink();
 	}
 
 	// Calculate time interval from start loop
@@ -343,36 +387,21 @@ void loop() {
 	if(lLoopMSPeriod > lTimeInt) delay(lLoopMSPeriod - lTimeInt);
 
 #ifdef _DEBUG_TRACE
-	FLOAT	fTAir,					// Air Temperature
-			fRHumidityAir,			// Air Relative Humidity
-			fTWater,				// Water Temperature
-			fLatitude = 0.0,		// GPS Latitude
-			fLongitude = 0.0;		// GPS Longitude
-
 	// Get data from sensors T, RHT of air, GPS
 	if (lCounterLoops % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isTestRun)
-	{	// Read RHT
-		if (pDataMS->Get_btRHTSensorError() == STATUS_BIT_OK)
-		{
-			INT rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-			pDataMS->Set_btRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			// set status bit of sensor
-			pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
-		}
+	{	
+		// Read RHT
+		FLOAT	fTAir;			// Air Temperature
+		FLOAT	fRHumidityAir;	// Air Relative Humidity
+		// Get RHT, set status bit of sensor
+		pDataMS->Set_btRHTSensorError(!pRHTSensor->GetRHT(fRHumidityAir, fTAir) ? STATUS_BIT_OK : STATUS_BIT_ERR);
+		pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
 
 		// Read water temperature and save in data packet
-		if (pDataMS->Get_btTempSensorError() == STATUS_BIT_OK)
-		{
-			pDataMS->Set_btTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
-			pDataMS->SetTemprWater(fTWater);
-		}
-
-		// Get GPS data
-		if (pDataMS->Get_btGPSError() == STATUS_BIT_OK && !pGPS->isNewData())
-		{
-			pGPS->GetGPS_Position(fLatitude, fLongitude);	// get latitude, longitude
-			pDataMS->SetGPS_LAT(fLatitude);					// set GPS Latitude
-			pDataMS->SetGPS_LON(fLongitude);				// set GPS Longitude
-		}
+		FLOAT fTWater;	// Water Temperature
+		// Get water temperature, set status bit of sensor
+		pDataMS->Set_btTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
+		pDataMS->SetTemprWater(fTWater);
 	}
 
 	// Read and execute command from serial console (hardware COM) 
@@ -410,14 +439,8 @@ void ISR_FlowmeterPulseOut()
 ///////////////////////////////////////////////////////////////
 void BTSerialReadCmnd()
 {
-	FLOAT	fTAir,					// Air Temperature
-			fRHumidityAir,			// Air Relative Humidity
-			fTWater,				// Water Temperature
-			fLatitude = 0.0,		// GPS Latitude
-			fLongitude = 0.0;		// GPS Longitude
-	DWORD	dwCounterCurr;
 	BOOL	isTestRunCopy, isReqDataCopy;
-	INT		nErrCode, rc;
+	INT		nErrCode;
 
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
@@ -430,9 +453,10 @@ void BTSerialReadCmnd()
 		// Analize code of command
 		switch (pCmndMS->GetCode()) 
 		{
-			// 67 Set current pulse count
+			// 0x43 (67) Set current pulse count
 			case cmndSetCounter: {
 				DBG_PRN(F("\t(SetCount) : ")); DBG_PRN(pCmndMS->GetArg_dw());
+				DWORD	dwCounterCurr;
 				// 0 - stop test
 				if ((dwCounterCurr = pCmndMS->GetArg_dw()) == 0) // stop test
 				{
@@ -454,15 +478,17 @@ void BTSerialReadCmnd()
 				break;
 			}
 
-			// 72 Read humidity and temperature from RHT sensor
+			// 0x48 (72) Read humidity and temperature from RHT sensor
 			case cmndReadRHT: {
 				DBG_PRN(F("\t(ReadRHT)"));
 				// Check is now test runing
-				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
+				COPY_NOINT(isTestRunCopy, isTestRun);	// save flag
 				if (!isTestRunCopy) {
+					FLOAT	fTAir;			// Air Temperature
+					FLOAT	fRHumidityAir;	// Air Relative Humidity
+
 					// Read humidity and temperature from RHT sensor and save in data packet
-					rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir);
-					pDataMS->Set_btRHTSensorError(!rc ? STATUS_BIT_OK : STATUS_BIT_ERR);			
+					pDataMS->Set_btRHTSensorError(!pRHTSensor->GetRHT(fRHumidityAir, fTAir) ? STATUS_BIT_OK : STATUS_BIT_ERR);
 					pDataMS->SetTemprAir(fTAir);	pDataMS->SetRHumidityAir(fRHumidityAir);
 					
 					// set request data flag
@@ -476,12 +502,14 @@ void BTSerialReadCmnd()
 				break;
 			}
 			
-			// 84 Read water temperature from sensor
+			// 0x54 (84) Read water temperature from sensor
 			case cmndReadTemprWater: {
 				DBG_PRN(F("\t(ReadTemprWater)"));
 				// Check is now test running
 				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
 				if (!isTestRunCopy) {
+					FLOAT	fTWater;	// Water Temperature
+
 					// Read temperature and save in data packet
 					pDataMS->Set_btTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? STATUS_BIT_OK : STATUS_BIT_ERR);
 					pDataMS->SetTemprWater(fTWater);
@@ -489,25 +517,29 @@ void BTSerialReadCmnd()
 					// set request data flag
 					COPY_NOINT(isReqData, true);
 
-					DBG_PRN(F("\t TWater= ")); DBG_PRN(fTWater, 1); DBG_PRN(F("\t PASSED"));
+					DBG_PRN(F("\t TWater= ")); DBG_PRN(fTWater, 1); 
+					DBG_PRN(F("\t PASSED"));
 				}
 				else DBG_PRN(F("\t SKIPED"));
 				break;
 			}
 
-			// 76 Get location from GPS
+			// 0x4C (76) Get location from GPS
 			case cmndGetLocation: {
 				DBG_PRN(F("\t(GetLocation)"));
 				// Check is now test running
-				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
+				COPY_NOINT(isTestRunCopy, isTestRun);	// save flag
 				if (!isTestRunCopy) {
-					if (pDataMS->Get_btGPSError() == STATUS_BIT_OK && !pGPS->isNewData())
-					{
-						// Get location 
-						pGPS->GetGPS_Position(fLatitude, fLongitude);	// get latitude, longitude
-						pDataMS->SetGPS_LAT(fLatitude);					// set GPS Latitude
-						pDataMS->SetGPS_LON(fLongitude);				// set GPS Longitude
-					}
+					FLOAT fLatitude, fLongitude;		// Latitude, longitude
+
+					// Get location and set state of GPS subsystem
+					nStGPS = pGPS->GetGPS_Position(fLatitude, fLongitude);
+
+					// Set location into DataMS & set GPS status bit
+					pDataMS->Set_btGPSError(nStGPS >= 0 ? STATUS_BIT_OK : STATUS_BIT_ERR);
+					pDataMS->SetGPS_LAT(fLatitude);		// set GPS Latitude
+					pDataMS->SetGPS_LON(fLongitude);	// set GPS Longitude
+
 					// set request data flag
 					COPY_NOINT(isReqData, true);
 					
@@ -520,7 +552,7 @@ void BTSerialReadCmnd()
 				break;
 			}
 
-			// 80 Turn off power
+			// 0x50 (80) Turn off power
 			case cmndPowerOff: {
 				DBG_PRN(F("\t(PowerOff)"));
 				// Power OFF
@@ -530,7 +562,7 @@ void BTSerialReadCmnd()
 				break;
 			}
 
-			// 82 Request new data packet from MS to CP
+			// 0x52 (82) Request new data packet from MS to CP
 			case cmndReqDataMS: {
 				DBG_PRN(F("\t(ReqDataMS)"));
 				
@@ -541,7 +573,7 @@ void BTSerialReadCmnd()
 				break;
 			}
 
-			// 160 Set DFM-MS main loop period, millis. Default = 200.
+			// 0xA0 (160) Set DFM-MS main loop period, millis. Default = 200.
 			case cmndSetLoopMSPeriod: {
 				DBG_PRN(F("\t(SetLoopMSPeriod) : ")); DBG_PRN(pCmndMS->GetArg_dw());
 				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
@@ -599,20 +631,25 @@ void EEPROM_ReadData(CDataEEPROM& data) {
 	lLoopMSPeriod = data.m_Data.m_lLoopMSPeriod;	// DFM-MS main loop period, millis
 	lDebugPrnPeriod = data.m_Data.m_lDebugPrnPeriod;// Debug print period
 	lInt4CalcQ = data.m_Data.m_lInt4CalcQ;			// Interval for calculate instant flow Q, millis
+	lCoordUpdPeriod = data.m_Data.m_lCoordUpdPeriod;// Delay between coordinate updates (GPS)
 	nTypeRHTSensor = data.m_Data.m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
-
+}
+///////////////////////////////////////////////////////////////
+// Print data from EEPROM into Serial console
+///////////////////////////////////////////////////////////////
+void EEPROM_PrintData(CDataEEPROM& data) {
 	// Printing data
-	DBG_PRNL(F(" -=== READ data from EEPROM  ===-"));
-	DBG_PRN(F("\t AppName \t"));		DBG_PRNL(data.m_Data.m_strAppName);
-	DBG_PRN(F("\t VerMaj \t"));			DBG_PRNL(data.m_Data.m_nVerMaj);
-	DBG_PRN(F("\t VerMin \t"));			DBG_PRNL(data.m_Data.m_nVerMin);
-	DBG_PRN(F("\t VerStatus \t"));		DBG_PRNL(data.m_Data.m_nVerStatus);
-	DBG_PRN(F("\t VerBuild \t"));		DBG_PRNL(data.m_Data.m_nVerBuild);
-	DBG_PRN(F("\t PulseFactor \t"));	DBG_PRNL(data.m_Data.m_dwPulseFactor);
-	DBG_PRN(F("\t LoopMSPeriod \t"));	DBG_PRNL(data.m_Data.m_lLoopMSPeriod);
-	DBG_PRN(F("\t DbgPrnPeriod \t"));	DBG_PRNL(data.m_Data.m_lDebugPrnPeriod);
-	DBG_PRN(F("\t Int4CalcQ \t"));		DBG_PRNL(data.m_Data.m_lInt4CalcQ);
-	DBG_PRN(F("\t TypeRHTSensor \t"));	DBG_PRNL(data.m_Data.m_nTypeRHTSensor);
+	DBG_PRN(F(" AppName \t\t"));		DBG_PRNL(data.m_Data.m_strAppName);
+	DBG_PRN(F(" VerMaj \t\t"));			DBG_PRNL(data.m_Data.m_nVerMaj);
+	DBG_PRN(F(" VerMin \t\t"));			DBG_PRNL(data.m_Data.m_nVerMin);
+	DBG_PRN(F(" VerStatus \t\t"));		DBG_PRNL(data.m_Data.m_nVerStatus);
+	DBG_PRN(F(" VerBuild \t\t"));		DBG_PRNL(data.m_Data.m_nVerBuild);
+	DBG_PRN(F(" PulseFactor \t\t"));	DBG_PRNL(data.m_Data.m_dwPulseFactor);
+	DBG_PRN(F(" LoopMSPeriod \t\t"));	DBG_PRNL(data.m_Data.m_lLoopMSPeriod);
+	DBG_PRN(F(" DbgPrnPeriod \t\t"));	DBG_PRNL(data.m_Data.m_lDebugPrnPeriod);
+	DBG_PRN(F(" Int4CalcQ \t\t"));		DBG_PRNL(data.m_Data.m_lInt4CalcQ);
+	DBG_PRN(F(" lCoordUpdPeriod \t"));	DBG_PRNL(data.m_Data.m_lCoordUpdPeriod);
+	DBG_PRN(F(" TypeRHTSensor \t\t"));	DBG_PRNL(data.m_Data.m_nTypeRHTSensor);
 }
 
 #ifdef _DEBUG_TRACE
@@ -684,9 +721,10 @@ void SerialPrintData( DWORD loops ) {
 	DBG_PRN(F("\tRH="));					DBG_PRN(pDataMS->GetRHumidityAir(), 1);
 
 	// Location
+	DBG_PRN(F("\tGPS="));					DBG_PRN(nStGPS);
 	DBG_PRN(F("\tLAT="));					DBG_PRN(pDataMS->GetGPS_LAT(), 6);
 	DBG_PRN(F("\tLON="));					DBG_PRN(pDataMS->GetGPS_LON(), 6);
-
+	
 	// Counters
 	DBG_PRN(F("\tCA="));					DBG_PRN(pDataMS->GetCounterAll(), 10);
 	DBG_PRN(F("\tCC="));					DBG_PRN(pDataMS->GetCounterCurr(), 10);
