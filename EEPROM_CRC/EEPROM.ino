@@ -33,7 +33,7 @@ void setup() {
 						2,			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
 						79,			// Build number, from SVC system
 						1000,		// Flowmeter pulse factor, pulses in 1 ltr				(1000)
-						200,		// DFM-MS main loop period, millis						(200)
+						100,			// DFM-MS main loop period, millis						(200)
 						2000,		// Debug print period									(2000)
 						1000,		// Interval for calculate instant flow Q, millis		(1000)
 						1000,		// Delay between coordinate updates (GPS)				(1000)

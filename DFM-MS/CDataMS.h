@@ -38,7 +38,7 @@ protected:
 					INT m_btEMFM_FQL			: 1;// 4 - flow low limit alarm
 					INT m_btGPSError			: 1;// 5 - GPS module alarm
 					INT	m_btNU1					: 1;// 6 - not used
-					INT m_btNU2					: 1;// 7 - not used
+					INT m_btTestRun				: 1;// 7 - test run bit: 1 - test is run, 0 - test not run
 				};
 			};
 			FLOAT	m_fTemprAir;	// Temperature of air, C							4
@@ -49,8 +49,8 @@ protected:
 			FLOAT	m_fLON;			// GPS Longitude									4
 			FLOAT	m_fQ;			// Instant flow m3/h								4
 			DWORD	m_dwTime;		// Time, millis										4
-			DWORD	m_dwCounterAll;	// All pulse counter, incremental					4
-			DWORD	m_dwCounterCurr;// Current pulse counter for tests, decremental		4	
+			DWORD	m_dwCounterInc;	// Increment pulse counter							4
+			DWORD	m_dwCounterDec;	// Decrement pulse counter for tests				4	
 		};
 	};
 public:
@@ -69,8 +69,8 @@ public:
 	FLOAT	GetGPS_LON()		const	{ return m_fLON;		 }
 	FLOAT	GetQ()				const	{ return m_fQ;			 }
 	DWORD	GetTime()			const	{ return m_dwTime;		 }
-	DWORD	GetCounterAll()		const	{ return m_dwCounterAll; }
-	DWORD	GetCounterCurr()	const	{ return m_dwCounterCurr;}
+	DWORD	GetCounterInc()		const	{ return m_dwCounterInc; }
+	DWORD	GetCounterDec()		const	{ return m_dwCounterDec; }
 
 	// Get status bits
 	BYTE	Get_bStatus()			const	{ return m_bStatus;				}
@@ -80,6 +80,7 @@ public:
 	INT		Get_btEMFM_FQH()		const	{ return m_btEMFM_FQH;			}
 	INT		Get_btEMFM_FQL()		const	{ return m_btEMFM_FQL;			}
 	INT		Get_btGPSError()		const	{ return m_btGPSError;			}
+	INT		Get_btTestRun()			const	{ return m_btTestRun;			}
 
 	// --- MODIFYING methods
 	BYTE*	GetDataMS()					{ return m_pDataMS; }
@@ -95,8 +96,8 @@ public:
 	void	SetGPS_LON(FLOAT fLON)		{ m_fLON = fLON;				}
 	void	SetQ(FLOAT fQ)				{ m_fQ = fQ;					}
 	void	SetTime(DWORD dwTime)		{ m_dwTime = dwTime;			}
-	void	SetCounterAll(DWORD dwC)	{ m_dwCounterAll = dwC;			}
-	void	SetCounterCurr(DWORD dwC)	{ m_dwCounterCurr = dwC;		}
+	void	SetCounterInc(DWORD dwC)	{ m_dwCounterInc = dwC;			}
+	void	SetCounterDec(DWORD dwC)	{ m_dwCounterDec = dwC;			}
 
 	// Set status bits
 	void	Set_bStatus(BYTE bStatus)		{ m_bStatus = bStatus;			}
@@ -106,6 +107,7 @@ public:
 	void	Set_btEMFM_FQH(INT bit)			{ m_btEMFM_FQH = bit;			}
 	void	Set_btEMFM_FQL(INT bit)			{ m_btEMFM_FQL = bit;			}
 	void	Set_btGPSError(INT bit)			{ m_btGPSError = bit;			}
+	void	Set_btTestRun(INT bit)			{ m_btTestRun = bit;			}
 };
 
 ///////////////////////////////////////////////////////
@@ -122,11 +124,7 @@ enum Cmnd	{	// DFM_MS control commands
 				cmndReadTemprWater	= 0x54,	// Read water temperature from sensor
 				
 				// Set parameters value commands
-				cmndSetLoopMSPeriod		= 0xA0,	// DWORD. Set DFM-MS main loop frequancy, millis. Default = 200.
-				cmndSetQMA_Points		= 0xA1,	// UINT. Set number of points for calculate moving average of flow Q. Default = 10.
-				cmndSetInt4CalcQ		= 0xA2,	// DWORD. Interval for calculate instant flow Q, millis. Default = 500.
-				cmndSetAntiTinklingOn	= 0xA4,	// BYTE. Antitinkling flag for EMFM output pulse: 1 - ON, 0 - OFF. Default = 0.
-				cmndSetPulseWidth		= 0xA5,	// UINT. Width in millisec of EMFM output pulse. Default = 50.
+				cmndSetLoopMSPeriod		= 0xA0,	// DWORD. Set DFM-MS main loop frequency, millis. Default = 200.
 			};
 
 class CCmndMS

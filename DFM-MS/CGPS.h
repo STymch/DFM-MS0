@@ -30,9 +30,13 @@ class CGPS
 	
 public:
 	// Constructor, destructor
-	CGPS(INT nRX, INT nTX, LONG lDR_COM, DWORD lPeriod): 
-		m_nRX_PIN (nRX), m_nTX_PIN (nTX), m_lDataRate (lDR_COM), m_lUpdPeriod (lPeriod)
+	CGPS(INT nRX, INT nTX, LONG lDR_COM, DWORD lPeriod): m_lUpdPeriod (lPeriod)
 	{
+		// Initialization
+		m_nRX_PIN = nRX;
+		m_nTX_PIN = nTX;
+		m_lDataRate = lDR_COM;
+
 		// Create objects
 		m_pGPS			= new TinyGPS;
 		m_pSerialGPS	= new SoftwareSerial(m_nRX_PIN, m_nTX_PIN);

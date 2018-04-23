@@ -23,9 +23,9 @@ protected:
 		CHAR	m_strAppName[8];	// Applications name
 		UINT	m_nVerMaj;			// Major version number
 		UINT	m_nVerMin;			// Minor version number
-		UINT	m_nVerStatus;		// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
+		UINT	m_nVerStatus;		// Status number: 0 - alpha, 1 - beta, 2 - RC, 3 - RTM
 		UINT	m_nVerBuild;		// Build number, from SVC system
-		DWORD	m_dwPulseFactor;	// Flowmeter pulse factor, pulses in 1 ltr
+		DWORD	m_dwPulseFactor;	// Flow meter pulse factor, pulses in 1 ltr
 		DWORD	m_lLoopMSPeriod;	// DFM-MS main loop period, millis
 		DWORD	m_lDebugPrnPeriod;	// Debug print period
 		DWORD	m_lInt4CalcQ;		// Interval for calculate instant flow Q, millis
@@ -45,9 +45,11 @@ protected:
 	 // Put data into structure
 
 	 // --- FRIEND function
+	 // First initialization of data
+	 friend void EEPROM_InitData(CDataEEPROM&);
 	 // Read data from EEPROM and copy into global variables
-	 friend void EEPROM_ReadData(CDataEEPROM&);
-	 // Print data from EEPROM into Serial console
+	 friend INT EEPROM_ReadData(CDataEEPROM&);
+	 // Print data from EEPROM into Serial console, Return: 0 - data read from EEPROM, -1 - EEPROM empty
 	 friend void EEPROM_PrintData(CDataEEPROM&);
 };
 #endif

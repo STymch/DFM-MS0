@@ -11,13 +11,14 @@
 #endif
 
 // Enable printing out nice debug messages, comment macros for disable debug messages
-#define _DEBUG_TRACE
-
-// Define where debug output will be printed
-#define DEBUG_PRN_DEVICE	Serial
+//#define _DEBUG_TRACE
+#define _SETUP_TRACE
 
 // Setup debug printing macros
 #ifdef _DEBUG_TRACE
+// Define where debug output will be printed
+#define DEBUG_PRN_DEVICE	Serial
+
 #define DBG_PRN(...)		{ DEBUG_PRN_DEVICE.print(__VA_ARGS__);		}
 #define DBG_PRNL(...)		{ DEBUG_PRN_DEVICE.println(__VA_ARGS__);	}
 #define DBG_PRN_LOGO(a,b)	{ DBG_PRNL(); DBG_PRN(a); DBG_PRN(b);		}
@@ -25,6 +26,19 @@
 #define DBG_PRN(...)		{}
 #define DBG_PRNL(...)		{}
 #define DBG_PRN_LOGO(a,b)	{}
+#endif
+
+#ifdef _SETUP_TRACE
+// Define where debug output will be printed
+#define PRN_DEVICE	Serial
+
+#define STP_PRN(...)		{ PRN_DEVICE.print(__VA_ARGS__);		}
+#define STP_PRNL(...)		{ PRN_DEVICE.println(__VA_ARGS__);	}
+#define STP_PRN_LOGO(a,b)	{ STP_PRNL(); STP_PRN(a); STP_PRN(b);		}
+#else
+#define STP_PRN(...)		{}
+#define STP_PRNL(...)		{}
+#define STP_PRN_LOGO(a,b)	{}
 #endif
 
 // --- TRUE, FALSE

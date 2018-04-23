@@ -68,19 +68,20 @@ const INT	TEMPERATURE_PRECISION = 9;	// Temperature sensor resolution: 9-12, 9 -
 
 const INT	STATUS_BIT_OK	= 0;		// Status bit: no error state
 const INT	STATUS_BIT_ERR	= 1;		// Status bit: error state
+const INT	TEST_RUN		= 1;		// Status bit test run: test is running
+const INT	TEST_NOT_RUN	= 0;		// Status bit test run: test is not running
+
 
 // ---===--- Global variables ---===---
 // Application version information
 UINT		nVerMaj			= 1;		// Major version number
 UINT		nVerMin			= 0;		// Minor version number
-UINT		nVerStatus		= 2;		// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-UINT		nVerBuild		= 79;		// Build number, from SVC system
+UINT		nVerStatus		= 3;		// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
+UINT		nVerBuild		= 80;		// Build number, from SVC system
 CHAR		strVer[28]		= "";		// Full version info string
 
-volatile DWORD	dwCounterPulseAll = 0;	// Counter of all output pulses from EMFM/Generator from turn on DFM-MS
-DWORD			dwCounterPulseAllCopy;	// For copy
-volatile DWORD	dwCounterPulseCurr = 0;	// Current counter for output pulses from EMFM/Generator
-DWORD			dwCounterPulseCurrCopy;	// For copy
+volatile DWORD	dwCounterPulseInc;		// Increment counter for output pulses from EMFM/Generator
+volatile DWORD	dwCounterPulseDec;		// Decrement counter for output pulses from EMFM/Generator
 
 DWORD	dwPulseFactor		= 1000;		// Flowmeter pulse factor, pulses in 1 ltr
 DWORD	lLoopMSPeriod		= 200;		// DFM-MS main loop period, millis
@@ -101,9 +102,7 @@ INT		nTypeRHTSensor		= snsrDHT21;// Type of RHT DHT sensor: DHT21, DHT22, DHT11
 INT		nStGPS				= -1;		// State of GPS subsystem: -1 - module not present; 1 - module present, no location data; 0 - success, present location data
 
 volatile BOOL	isTestRun = false;		// Test state flag: true - test is running, false - test not running now
-BOOL			isTestRunCopy;			// For copy
 volatile BOOL	isReqData = false;		// Request for send data: true - request received, no request
-BOOL			isReqDataCopy;			// Request for send data: true - request received, no request
 
 BYTE			pBuff[DATA_LEN+1];		// Buffer for save sending data
 
@@ -157,7 +156,8 @@ void setup()
 	// --==-- EEPROM object
 	pCDataEEPROM = new CDataEEPROM;
 	// Read data from EEPROM
-	EEPROM_ReadData(*pCDataEEPROM);
+	EEPROM_InitData(*pCDataEEPROM);
+	rc = EEPROM_ReadData(*pCDataEEPROM);
 	
 	// --==-- Save application version info into string
 	strcat(strVer, itoa(nVerMaj, strTemp, 10));	strcat(strVer, ".");
@@ -168,19 +168,21 @@ void setup()
 					else strcat(strVer, "RTM");
 	strcat(strVer, ".");
 	strcat(strVer, itoa(nVerBuild, strTemp, 10)); strcat(strVer, " ");
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": SETUP STARTING ----->>>>>"));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRNL(F(": SETUP STARTING ----->>>>>"));
 	
 	// Print data was read from EEPROM
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": DATA WAS READ FROM EEPROM:"));
+	STP_PRN_LOGO(strAppName, strVer);	
+	if (!rc)	{ STP_PRNL(F(": DATA WAS READ FROM EEPROM:"));			}
+	else		{ STP_PRNL(F(": EEPROM EMPTY, DATA INITIALIZATION:"));	}
 	EEPROM_PrintData(*pCDataEEPROM);
 	
 	// --==-- Power DC Control object
 	// Create object & initialization
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> POWER DC:"));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRN(F(": SUBSYSTEM -> POWER DC:"));
 	pPowerDC = new CPowerDC(POWER_INPUT_PIN, POWER_ON_OFF_PIN, nDelayAfterPowerON);
 	// Power ON
 	pPowerDC->PowerON();
-	DBG_PRN(F("\t\t PASSED (ON)"));
+	STP_PRN(F("\t\t PASSED (ON)"));
 
 	// --==-- Bluetooth serial port
 	// Create object & initialization
@@ -215,24 +217,24 @@ void setup()
 	// Initialization, attache interrupt
 	pEMFM->Init(0, DWORD(-1), dwPulseFactor, nPULSE_INT_MODE, pISR);
 	
-	pDataMS->SetCounterAll(pEMFM->GetCounterAll());
-	pDataMS->SetCounterCurr(pEMFM->GetCounterCurr());
+	pDataMS->SetCounterInc(pEMFM->GetCounterInc());
+	pDataMS->SetCounterDec(pEMFM->GetCounterDec());
 	pDataMS->SetTime(pEMFM->GetTime());
 	pDataMS->SetQ(pEMFM->GetQ());
 
 		// --==-- Humidity & temperature sensor
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> RHT AIR SENSOR:"));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRN(F(": SUBSYSTEM -> RHT AIR SENSOR:"));
 	pRHTSensor = new CRHTSensor(DHTxx_PIN, nTypeRHTSensor);
 	// Get RH and temperature from sensor
 	if (!(rc = pRHTSensor->GetRHT(fRHumidityAir, fTAir)))
 	{
-		DBG_PRN(F("\t\t PASSED"));
-		DBG_PRN(F("\t\t MODEL: "));			DBG_PRN(pRHTSensor->GetSensorModel());
-		DBG_PRN(F("\t TAir (C): "));		DBG_PRN(fTAir, 1);
-		DBG_PRN(F("\t Humidity (%): "));	DBG_PRN(fRHumidityAir, 1);
+		STP_PRN(F("\t\t PASSED"));
+		STP_PRN(F("\t\t MODEL: "));			STP_PRN(pRHTSensor->GetSensorModel());
+		STP_PRN(F("\t TAir (C): "));		STP_PRN(fTAir, 1);
+		STP_PRN(F("\t Humidity (%): "));	STP_PRN(fRHumidityAir, 1);
 	}
 	else {
-		DBG_PRN(F("\t\t NOT DETECTED! \t MODEL: ")); DBG_PRN(pRHTSensor->GetSensorModel());
+		STP_PRN(F("\t\t NOT DETECTED! \t MODEL: ")); STP_PRN(pRHTSensor->GetSensorModel());
 	}	
 
 	pDataMS->Set_btRHTSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit RHT sensor
@@ -240,37 +242,37 @@ void setup()
 	pDataMS->SetRHumidityAir(fRHumidityAir);								// set humidity
 
 	// --==-- Temperature of water sensor
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> T WATER SENSOR: "));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRN(F(": SUBSYSTEM -> T WATER SENSOR: "));
 	pTemperatureSensor = new CTemperatureSensor(TEMP_PIN, TEMPERATURE_PRECISION);
 	// Waiting...
 	delay(2000);
 	// Get temperature from sensor
 	if ( !(rc = pTemperatureSensor->GetTemperature(fTWater)) ) {
-		DBG_PRN(F("\t PASSED"));
-		DBG_PRN(F("\t\t NUMBER OF DEV:"));DBG_PRN(pTemperatureSensor->GetNumberOfDevices());
-		DBG_PRN(F("\t MODEL: "));		DBG_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
-		DBG_PRN(F("\t PPOWER: "));		DBG_PRN(pTemperatureSensor->isParasitePower());
-		DBG_PRN(F("\t T (C): "));		DBG_PRN(fTWater, 1);
+		STP_PRN(F("\t PASSED"));
+		STP_PRN(F("\t\t NUMBER OF DEV:"));	STP_PRN(pTemperatureSensor->GetNumberOfDevices());
+		STP_PRN(F("\t MODEL: "));			STP_PRN(DS_MODEL_NAME[pTemperatureSensor->GetTypeSensor()]);
+		STP_PRN(F("\t PPOWER: "));			STP_PRN(pTemperatureSensor->isParasitePower());
+		STP_PRN(F("\t T (C): "));			STP_PRN(fTWater, 1);
 	}
-	else	DBG_PRN(F("\t NOT DETECTED"));
+	else	STP_PRN(F("\t NOT DETECTED"));
 	
 	pDataMS->Set_btTempSensorError( !rc ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit
 	pDataMS->SetTemprWater(fTWater);										// set water temperature
 
 	// --==-- GPS subsystem
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRN(F(": SUBSYSTEM -> GPS: "));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRN(F(": SUBSYSTEM -> GPS: "));
 	pGPS = new CGPS(RX_PIN_GPS, TX_PIN_GPS, DR_GPS_COM, lCoordUpdPeriod);
 	// Waiting...
 	delay(lCoordUpdPeriod);
 	// Get position from GPS
 	if ((nStGPS = pGPS->GetGPS_Position(fLatitude, fLongitude)) >= 0) {
-		DBG_PRN(F("\t\t\t PASSED"));
-		DBG_PRN(F("\t\t LAT: "));		DBG_PRN(fLatitude);
-		DBG_PRN(F("\t LON: "));		DBG_PRNL(fLongitude);
+		STP_PRN(F("\t\t\t PASSED"));
+		STP_PRN(F("\t\t LAT: "));	STP_PRN(fLatitude);
+		STP_PRN(F("\t LON: "));		STP_PRNL(fLongitude);
 	}
 	else { // GPS module not present
 		fLatitude = fLongitude = -1.0;
-		DBG_PRNL(F("\t\t\t NOT DETECTED"));
+		STP_PRNL(F("\t\t\t NOT DETECTED"));
 	}
 
 	pDataMS->Set_btGPSError (nStGPS >= 0 ? STATUS_BIT_OK : STATUS_BIT_ERR);	// set status bit of GPS module
@@ -278,7 +280,7 @@ void setup()
 	pDataMS->SetGPS_LON(fLongitude);										// set GPS Longitude
 
 	// --==-- Delay before starting main loop
-	DBG_PRN_LOGO(strAppName, strVer);	DBG_PRNL(F(": LOOP STARTING ----->>>>>"));
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRNL(F(": LOOP STARTING ----->>>>>"));
 }
 
 ///////////////////////////////////////////////////////////////
@@ -289,8 +291,13 @@ void loop() {
 	static DWORD	lCounterLoops = 0;
 	// Flag - was there a data request from DFM-CP
 	static BOOL isReqDataGet = false;
+	
 	// For save copy of isReqData
-	BOOL isReqDataCopy;
+	BOOL isReqDataCpy;
+	// For save copy of increment counter
+	DWORD dwCounterPulseIncCpy;
+	// For save copy of decrement counter
+	DWORD dwCounterPulseDecCpy;
 
 	// Save time of begin of loop
 	DWORD lTimeBegin = millis();
@@ -299,44 +306,41 @@ void loop() {
 	lCounterLoops++;
 
 	// Read and execute command from DFM-CP BT serial port
-	::BTSerialReadCmnd();
+	INT rc = ::BTSerialReadCmnd();
 
-	// Calculate data for DataMS packet
-	if (lCounterLoops % (lInt4CalcQ / lLoopMSPeriod) == 0) {
+	// Check request data flag
+	COPY_NOINT(isReqDataCpy, isReqData);
+	if (isReqDataCpy) { // Calculate data for DataMS packet
+		// Clear request data flag before read counters!
+		COPY_NOINT(isReqData, false);
+
 		// Get Power DC value and save in data packet
 		pDataMS->SetPowerU(pPowerDC->GetPowerDC());
 
 		// Get counters values from ISR
-		COPY_NOINT(dwCounterPulseAllCopy, dwCounterPulseAll);
-		COPY_NOINT(dwCounterPulseCurrCopy, dwCounterPulseCurr);
+		COPY_NOINT(dwCounterPulseIncCpy, dwCounterPulseInc);
+		COPY_NOINT(dwCounterPulseDecCpy, dwCounterPulseDec);
 
 		// Get current time
 		DWORD lTimeCurr = millis();
 
-		// Calculate flow Q (m3/h)
-		pEMFM->CalculateQ(dwCounterPulseAllCopy, lTimeCurr);
+		// Calculate flow Q (m3/h) and save it in data packet
+		pEMFM->CalculateQ(dwCounterPulseIncCpy, lTimeCurr);
 
 		// Save counters and time in EMFM object
-		pEMFM->SetCounterAll(dwCounterPulseAllCopy);
-		pEMFM->SetCounterCurr(dwCounterPulseCurrCopy);
+		pEMFM->SetCounterInc(dwCounterPulseIncCpy);
+		pEMFM->SetCounterDec(dwCounterPulseDecCpy);
 		pEMFM->SetTime(lTimeCurr);
 
 		// Save counters, time and flow in data packet
-		pDataMS->SetCounterAll(dwCounterPulseAllCopy);
-		pDataMS->SetCounterCurr(dwCounterPulseCurrCopy);
+		pDataMS->SetCounterInc(dwCounterPulseIncCpy);
+		pDataMS->SetCounterDec(dwCounterPulseDecCpy);
 		pDataMS->SetTime(lTimeCurr);
 		pDataMS->SetQ(pEMFM->GetQ());
-	}
 
-	// Check request data flag
-	COPY_NOINT(isReqDataCopy, isReqData);
-	if (isReqDataCopy) { 
 		// Write data into BT serial port
 		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 
-		// Clear request data flag
-		COPY_NOINT(isReqData, false);
-		
 		// Set flag - was there a data request from DFM-CP
 		isReqDataGet = true;
 	}
@@ -407,8 +411,13 @@ void loop() {
 	// Read and execute command from serial console (hardware COM) 
 	::SerialReadCmnd();
 
-	// Print data
-	if (lCounterLoops % (lDebugPrnPeriod / lLoopMSPeriod) == 0 && !isTestRun) ::SerialPrintData(lCounterLoops);
+	// Additional print data packet into serial console, if get dwCounterSet command
+	if (rc == 0x43) ::SerialPrintData(lCounterLoops);		
+
+	// The next print data packet into serial console? if no test running
+	BOOL	isTestRunCpy;
+	COPY_NOINT(isTestRunCpy, isTestRun);
+	if (lCounterLoops % (lDebugPrnPeriod / lLoopMSPeriod) == 0 && !isTestRunCpy) ::SerialPrintData(lCounterLoops);
 #endif
 }
 
@@ -418,16 +427,16 @@ void loop() {
 void ISR_FlowmeterPulseOut()
 {
 	// Increment counter of all EMFM pulse
-	++dwCounterPulseAll;
+	++dwCounterPulseInc;
 
 	// Decrement current counter while > 0
-	if (dwCounterPulseCurr > 0)
+	if (dwCounterPulseDec > 0)
 	{
 		// Decrement counter
-		--dwCounterPulseCurr;
+		--dwCounterPulseDec;
 
 		// If current counter == 0
-		if (dwCounterPulseCurr == 0) {
+		if (dwCounterPulseDec == 0) {
 			isTestRun = false;	// test completed
 			isReqData = true;	// set request data flag
 		}
@@ -437,11 +446,11 @@ void ISR_FlowmeterPulseOut()
 ///////////////////////////////////////////////////////////////
 // Read command from DFM-CP
 ///////////////////////////////////////////////////////////////
-void BTSerialReadCmnd()
+INT BTSerialReadCmnd()
 {
-	BOOL	isTestRunCopy, isReqDataCopy;
-	INT		nErrCode;
-
+	BOOL	isTestRunCpy;
+	INT		rc, nErrCode;
+	
 	// Read command from DFM-CP
 	if ((nErrCode = pBTSerialPort->Read(pCmndMS->GetData(), CMND_LEN + 1)) > 0) {
 		DBG_PRN_LOGO(strAppName, strVer);
@@ -450,31 +459,35 @@ void BTSerialReadCmnd()
 		// Set ReceiveError status bit to no error
 		pDataMS->Set_btReceiveError(STATUS_BIT_OK);
 
+		// Retcode - command code
+		rc = (pCmndMS->GetCode());
+
 		// Analize code of command
-		switch (pCmndMS->GetCode()) 
+		switch (rc) 
 		{
 			// 0x43 (67) Set current pulse count
 			case cmndSetCounter: {
 				DBG_PRN(F("\t(SetCount) : ")); DBG_PRN(pCmndMS->GetArg_dw());
-				DWORD	dwCounterCurr;
+				DWORD	dwCounterSet;
 				// 0 - stop test
-				if ((dwCounterCurr = pCmndMS->GetArg_dw()) == 0) // stop test
+				if ((dwCounterSet = pCmndMS->GetArg_dw()) == 0) // stop test
 				{
-					dwCounterCurr = DWORD(-1);	// set max dword (-1) for current counter
-					isTestRunCopy = false;		// clear flag TestRun
+					dwCounterSet = DWORD(-1);	// set max dword (-1) for current counter
+					isTestRunCpy = false;		// clear flag TestRun
 				}
 				else	// start test
 				{
-					isTestRunCopy = true;		// set flag TestRun
+					isTestRunCpy = true;		// set flag TestRun
 				}
-				// set request data flag
-				isReqDataCopy = true;	
-			
-				COPY_NOINT(dwCounterPulseCurr, dwCounterCurr);	// save current pulse counter
-				COPY_NOINT(isTestRun, isTestRunCopy);			// save flag
-				COPY_NOINT(isReqData, isReqDataCopy);			// save flag
+	
+				// Set test run status bit
+				pDataMS->Set_btTestRun(isTestRunCpy ? TEST_RUN : TEST_NOT_RUN);
 				
-				DBG_PRN(F("\t PASSED"));
+				COPY_NOINT(dwCounterPulseDec, dwCounterSet);	// set new decrement counter
+				COPY_NOINT(isTestRun, isTestRunCpy);			// save flag
+				COPY_NOINT(isReqData, true);					// save flag
+				
+				DBG_PRNL(F("\t PASSED"));
 				break;
 			}
 
@@ -482,8 +495,8 @@ void BTSerialReadCmnd()
 			case cmndReadRHT: {
 				DBG_PRN(F("\t(ReadRHT)"));
 				// Check is now test runing
-				COPY_NOINT(isTestRunCopy, isTestRun);	// save flag
-				if (!isTestRunCopy) {
+				COPY_NOINT(isTestRunCpy, isTestRun);	// save flag
+				if (!isTestRunCpy) {
 					FLOAT	fTAir;			// Air Temperature
 					FLOAT	fRHumidityAir;	// Air Relative Humidity
 
@@ -498,7 +511,7 @@ void BTSerialReadCmnd()
 					DBG_PRN(F("\t RH= "));		DBG_PRN(fRHumidityAir, 1);
 					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN(F("\t SKIPED"));
+				else DBG_PRNL(F("\t SKIPED"));
 				break;
 			}
 			
@@ -506,8 +519,8 @@ void BTSerialReadCmnd()
 			case cmndReadTemprWater: {
 				DBG_PRN(F("\t(ReadTemprWater)"));
 				// Check is now test running
-				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
-				if (!isTestRunCopy) {
+				COPY_NOINT(isTestRunCpy, isTestRun);			// save flag
+				if (!isTestRunCpy) {
 					FLOAT	fTWater;	// Water Temperature
 
 					// Read temperature and save in data packet
@@ -520,7 +533,7 @@ void BTSerialReadCmnd()
 					DBG_PRN(F("\t TWater= ")); DBG_PRN(fTWater, 1); 
 					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN(F("\t SKIPED"));
+				else DBG_PRNL(F("\t SKIPED"));
 				break;
 			}
 
@@ -528,8 +541,8 @@ void BTSerialReadCmnd()
 			case cmndGetLocation: {
 				DBG_PRN(F("\t(GetLocation)"));
 				// Check is now test running
-				COPY_NOINT(isTestRunCopy, isTestRun);	// save flag
-				if (!isTestRunCopy) {
+				COPY_NOINT(isTestRunCpy, isTestRun);	// save flag
+				if (!isTestRunCpy) {
 					FLOAT fLatitude, fLongitude;		// Latitude, longitude
 
 					// Get location and set state of GPS subsystem
@@ -548,7 +561,7 @@ void BTSerialReadCmnd()
 					DBG_PRN(F("\t LON= "));	DBG_PRN(pDataMS->GetGPS_LON(), 6);
 					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN(F("\t SKIPED"));
+				else DBG_PRNL(F("\t SKIPED"));
 				break;
 			}
 
@@ -558,7 +571,7 @@ void BTSerialReadCmnd()
 				// Power OFF
 				pPowerDC->PowerOFF();
 				
-				DBG_PRN(F("\t PASSED"));
+				DBG_PRNL(F("\t PASSED"));
 				break;
 			}
 
@@ -569,70 +582,97 @@ void BTSerialReadCmnd()
 				// set request data flag
 				COPY_NOINT(isReqData, true);
 																
-				DBG_PRN(F("\t PASSED"));
+				DBG_PRNL(F("\t PASSED"));
 				break;
 			}
 
 			// 0xA0 (160) Set DFM-MS main loop period, millis. Default = 200.
 			case cmndSetLoopMSPeriod: {
 				DBG_PRN(F("\t(SetLoopMSPeriod) : ")); DBG_PRN(pCmndMS->GetArg_dw());
-				COPY_NOINT(isTestRunCopy, isTestRun);			// save flag
-				if (!isTestRunCopy) {
+				COPY_NOINT(isTestRunCpy, isTestRun);			// save flag
+				if (!isTestRunCpy) {
 					// Change parameter
 					noInterrupts();
 					lLoopMSPeriod = pCmndMS->GetArg_dw();
 					interrupts();
 					DBG_PRN(F("\t PASSED"));
 				}
-				else DBG_PRN(F("\t SKIPED"));
+				else DBG_PRNL(F("\t SKIPED"));
 				break;
 			}
 
 			// non-existent code
 			default: {
-				DBG_PRN(F("\t DO NOTHING PASSED"));
+				DBG_PRNL(F("\t DO NOTHING PASSED"));
 				break;
 			}
 		}
 	}
-	else if (nErrCode != -1) {
-		DBG_PRN_LOGO(strAppName, strVer); 
-		DBG_PRN(F("======>>> BTSerial ERROR: "));	DBG_PRN(nErrCode);	
-		DBG_PRN(F("\t DATA: "));					DBG_PRN((pCmndMS->GetData())[0]);
-		
-		if ( (pCmndMS->GetData())[0] <= CMND_LEN && (pCmndMS->GetData())[0] >= 0 )
-			for (int j = 1; j <= CMND_LEN; ++j) { DBG_PRN(F(" 0x")); DBG_PRN((pCmndMS->GetData())[j], HEX);	}
-		
-		DBG_PRN(F("\t SKIPED"));
-		
-		dwCountReceiveErr++;
+	else {
+		if (nErrCode != -1) {
+			DBG_PRN_LOGO(strAppName, strVer);
+			DBG_PRN(F("======>>> BTSerial ERROR: "));	DBG_PRN(nErrCode);
+			DBG_PRN(F("\t DATA: "));					DBG_PRN((pCmndMS->GetData())[0]);
 
-		// Set ReceiveError status bit to 1
-		pDataMS->Set_btReceiveError(STATUS_BIT_ERR);
+			if ((pCmndMS->GetData())[0] <= CMND_LEN && (pCmndMS->GetData())[0] >= 0)
+				for (int j = 1; j <= CMND_LEN; ++j) { DBG_PRN(F(" 0x")); DBG_PRN((pCmndMS->GetData())[j], HEX); }
+
+			DBG_PRNL(F("\t SKIPED"));
+
+			dwCountReceiveErr++;
+
+			// Set ReceiveError status bit to 1
+			pDataMS->Set_btReceiveError(STATUS_BIT_ERR);
+		}
+		rc = nErrCode;
 	}
+	return rc;
 }
+///////////////////////////////////////////////////////////////
+// Initialization of data before read from EEPROM
+///////////////////////////////////////////////////////////////
+void EEPROM_InitData(CDataEEPROM& data) {
+	strcpy(data.m_Data.m_strAppName, strAppName);	// Applications name
+	data.m_Data.m_nVerMaj = nVerMaj;				// Major version number
+	data.m_Data.m_nVerMin = nVerMin;				// Minor version number
+	data.m_Data.m_nVerStatus = nVerStatus;			// Status number: 0 - alpha, 1 - beta, 2 - RC, 3 - RTM
+	data.m_Data.m_nVerBuild = nVerBuild;			// Build number, from SVC system
 
+	data.m_Data.m_dwPulseFactor = dwPulseFactor;	// Flow meter pulse factor, pulses in 1 ltr
+	data.m_Data.m_lLoopMSPeriod = lLoopMSPeriod;	// DFM-MS main loop period, millis
+	data.m_Data.m_lDebugPrnPeriod = lDebugPrnPeriod;// Debug print period
+	data.m_Data.m_lInt4CalcQ = lInt4CalcQ;			// Interval for calculate instant flow Q, millis
+	data.m_Data.m_lCoordUpdPeriod = lCoordUpdPeriod;// Delay between coordinate updates (GPS)
+	data.m_Data.m_nTypeRHTSensor = nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+}
 ///////////////////////////////////////////////////////////////
 // Read data from EEPROM and save in global variables
+// Return: 0 - data read from EEPROM, -1 - EEPROM empty
 ///////////////////////////////////////////////////////////////
-void EEPROM_ReadData(CDataEEPROM& data) {
+INT EEPROM_ReadData(CDataEEPROM& data) {
 
-	// Read data from EEPROM into structure m_Data
-	data.ReadData();
+	INT rc = 0;
 
-	// Save read data into global variables
-	strcpy(strAppName, data.m_Data.m_strAppName);	// Applications name
-	nVerMaj = data.m_Data.m_nVerMaj;				// Major version number
-	nVerMin = data.m_Data.m_nVerMin;				// Minor version number
-	nVerStatus = data.m_Data.m_nVerStatus;			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-	nVerBuild = data.m_Data.m_nVerBuild;			// Build number, from SVC system
+	// Read data from EEPROM into structure m_Data, if EEPROM not empty
+	if (EEPROM.read(0) == 0) rc = -1;	// EEPROM empty
+	else {								// EEPROM not empty
+		data.ReadData();
+		
+		// Save read data into global variables
+		strcpy(strAppName, data.m_Data.m_strAppName);	// Applications name
+		nVerMaj = data.m_Data.m_nVerMaj;				// Major version number
+		nVerMin = data.m_Data.m_nVerMin;				// Minor version number
+		nVerStatus = data.m_Data.m_nVerStatus;			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
+		nVerBuild = data.m_Data.m_nVerBuild;			// Build number, from SVC system
 
-	dwPulseFactor = data.m_Data.m_dwPulseFactor;	// Flowmeter pulse factor, pulses in 1 ltr
-	lLoopMSPeriod = data.m_Data.m_lLoopMSPeriod;	// DFM-MS main loop period, millis
-	lDebugPrnPeriod = data.m_Data.m_lDebugPrnPeriod;// Debug print period
-	lInt4CalcQ = data.m_Data.m_lInt4CalcQ;			// Interval for calculate instant flow Q, millis
-	lCoordUpdPeriod = data.m_Data.m_lCoordUpdPeriod;// Delay between coordinate updates (GPS)
-	nTypeRHTSensor = data.m_Data.m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+		dwPulseFactor = data.m_Data.m_dwPulseFactor;	// Flowmeter pulse factor, pulses in 1 ltr
+		lLoopMSPeriod = data.m_Data.m_lLoopMSPeriod;	// DFM-MS main loop period, millis
+		lDebugPrnPeriod = data.m_Data.m_lDebugPrnPeriod;// Debug print period
+		lInt4CalcQ = data.m_Data.m_lInt4CalcQ;			// Interval for calculate instant flow Q, millis
+		lCoordUpdPeriod = data.m_Data.m_lCoordUpdPeriod;// Delay between coordinate updates (GPS)
+		nTypeRHTSensor = data.m_Data.m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+	}
+	return rc;
 }
 ///////////////////////////////////////////////////////////////
 // Print data from EEPROM into Serial console
@@ -680,16 +720,16 @@ void SerialReadCmnd()
 					// save start time, ms
 					lTimeStart = millis();
 					// set current counter 1 000 hour
-					COPY_NOINT(dwCounterPulseCurr, INIT_COUNTER);
+					COPY_NOINT(dwCounterPulseDec, INIT_COUNTER);
 				}	
 				else			// stop stopwatch
 				{	
 					// save stop time, ms
 					lTimeStop = millis();
 					// read pulse counter 
-					COPY_NOINT(lCounterPulse, dwCounterPulseCurr);
+					COPY_NOINT(lCounterPulse, dwCounterPulseDec);
 					// print data
-					DBG_PRN(F("\t COUNT = "));				DBG_PRN((DWORD)(INIT_COUNTER - lCounterPulse), 10);
+					DBG_PRN(F("\t Pulse = "));				DBG_PRN((DWORD)(INIT_COUNTER - lCounterPulse), 10);
 					DBG_PRN(F("\t Elapsed time, ms = "));	DBG_PRN((DWORD)(lTimeStop - lTimeStart), 10);
 				}
 				isStopwatch = !isStopwatch;	// invert flag				break;
@@ -726,8 +766,8 @@ void SerialPrintData( DWORD loops ) {
 	DBG_PRN(F("\tLON="));					DBG_PRN(pDataMS->GetGPS_LON(), 6);
 	
 	// Counters
-	DBG_PRN(F("\tCA="));					DBG_PRN(pDataMS->GetCounterAll(), 10);
-	DBG_PRN(F("\tCC="));					DBG_PRN(pDataMS->GetCounterCurr(), 10);
+	DBG_PRN(F("\tC+="));					DBG_PRN(pDataMS->GetCounterInc(), 10);
+	DBG_PRN(F("\tC-="));					DBG_PRN(pDataMS->GetCounterDec(), 10);
 
 	// Time
 	DBG_PRN(F("\tT="));						DBG_PRN(pDataMS->GetTime(), 10);
