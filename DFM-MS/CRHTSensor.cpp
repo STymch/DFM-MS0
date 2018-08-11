@@ -46,7 +46,7 @@ INT	CRHTSensor::GetRHT(FLOAT& fHumidity, FLOAT& fTemperature)
 		}
 
 		// Detect Model of sensor DHTxx
-		if (!rc) m_nSensorModel = 1;
+		if (!rc) m_nSensorModel = m_nDHT_TYPE;
 	}
 	
 	return rc;

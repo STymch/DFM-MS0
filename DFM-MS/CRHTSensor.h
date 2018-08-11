@@ -49,7 +49,7 @@ class CRHTSensor
 	INT		m_nDHT_PIN;		// DHT digital pin we're connected to
 	INT		m_nDHT_TYPE;	// DHT sensors type
 	
-	INT		m_nSensorModel;	// Autodetect Model of sensor: 0 - HTU21D, 1 - DHTxx, -1 - no sensors
+	INT		m_nSensorModel;	// Autodetect Model of sensor: 0 - HTU21D, xx - DHTxx, -1 - no sensors
 		
 public:
 	// Constructor, destructor

@@ -116,7 +116,7 @@ public:
 const INT		CMND_LEN = 5;				// Max size of command in bytes
 // Command codes
 enum Cmnd	{	// DFM_MS control commands
-				cmndSetCounter		= 0x43,	// DWORD. Set current counter, if 0 - be set DWORD(-1)
+				cmndStStpTest		= 0x43,	// DWORD. START / STOP test: set decrement counter
 				cmndReadRHT			= 0x48,	// Read humidity and temperature of air from sensor	
 				cmndGetLocation		= 0x4C,	// Get location from GPS	
 				cmndPowerOff		= 0x50,	// Execute DFM-MS Power OFF

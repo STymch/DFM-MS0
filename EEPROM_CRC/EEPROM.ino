@@ -30,14 +30,14 @@ void setup() {
 						"DFM-MS ",	// Applications name
 						1,			// Major version number
 						0,			// Minor version number
-						2,			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-						79,			// Build number, from SVC system
+						3,			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
+						81,			// Build number, from SVC system
 						1000,		// Flowmeter pulse factor, pulses in 1 ltr				(1000)
-						100,			// DFM-MS main loop period, millis						(200)
+						100,		// DFM-MS main loop period, millis						(200)
 						2000,		// Debug print period									(2000)
 						1000,		// Interval for calculate instant flow Q, millis		(1000)
 						1000,		// Delay between coordinate updates (GPS)				(1000)
-						11,			// Type of RHT DHT sensor: DHT21, DHT22, DHT11			(11, 21, 22)						
+						22,			// Type of RHT DHT sensor: DHT21, DHT22, DHT11			(11, 21, 22)						
 	};
 	
 	// Write data 

@@ -11,6 +11,9 @@
 
 #include "CommDef.h"
 
+extern volatile DWORD	dwCounterPulseInc;		// Increment counter for output pulses from EMFM/Generator
+extern volatile DWORD	dwCounterPulseDec;		// Decrement counter for output pulses from EMFM/Generator
+
 ///////////////////////////////////////////////////////
 // <<< CEMFM - class for EMFM QTLD-15 / Generator
 ///////////////////////////////////////////////////////
@@ -73,9 +76,13 @@ public:
 			void	(*ISR)()		// external interrupt ISR
 	){
 		// Save parameters
-		m_dwCounterInc = dwCountI;		// Counter of all input pulses from EMFM/Generator from turn on FMVI-MS
-		m_dwCounterDec	= dwCountD;		// Current counter for input pulses from EMFM/Generator
+		m_dwCounterInc = dwCountI;		// Increment counter of all input pulses from EMFM/Generator from turn on FMVI-MS
+		m_dwCounterDec = dwCountD;		// Decrement counter for input pulses from EMFM/Generator
 		m_nPulseFactor = nPulseFactor;	// Number of pulse from EMFM for 1 ltr water
+
+		// Save counters in global variables
+		COPY_NOINT(dwCounterPulseInc, m_dwCounterInc); // Increment counter
+		COPY_NOINT(dwCounterPulseDec, m_dwCounterDec); // Decrement counter
 
 		// Define pin modes
 		pinMode(m_nINP_PULSE_PIN, INPUT);

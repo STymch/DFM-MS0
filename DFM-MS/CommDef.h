@@ -11,7 +11,7 @@
 #endif
 
 // Enable printing out nice debug messages, comment macros for disable debug messages
-//#define _DEBUG_TRACE
+#define	_DEBUG_TRACE
 #define _SETUP_TRACE
 
 // Setup debug printing macros

@@ -51,6 +51,9 @@ BOOL CGPS::WaitNewData()
 		}
 	} while (millis() - lStartTime < m_lUpdPeriod && !isNewData);
 
+	// Stop listening. Returns true if we were actually listening.
+//	while(m_pSerialGPS->stopListening());
+
 	return isNewData;
 }
 
