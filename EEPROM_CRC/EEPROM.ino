@@ -11,18 +11,20 @@ struct DFM_Data {
 	short	m_nVerStatus;		// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
 	short	m_nVerBuild;		// Build number, from SVC system
 	long	m_dwPulseFactor;	// Flowmeter pulse factor, pulses in 1 ltr
+	int		m_nVolumeFactor;	// Flow meter volume factor, milliltrs in 1 pulse
 	long	m_lLoopMSPeriod;	// DFM-MS main loop period, millis
 	long	m_lDebugPrnPeriod;	// Debug print period
 	long	m_lInt4CalcQ;		// Interval for calculate instant flow Q, millis
 	long	m_lCoordUpdPeriod;	// Delay between coordinate updates (GPS)
-	short	m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11	
+	short	m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11 (11, 21, 22)
+	short	m_nTypeDevOnPIN2;	// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
 };
 
 bool isClearEEPROM = false;		// Clear EEPROM flag (if true)
 
 void setup() {
 
-	Serial.begin(38600);
+	Serial.begin(38400);
 	while (!Serial);	// wait for serial port to connect. Needed for native USB port only
 
 	// Data to store
@@ -31,13 +33,15 @@ void setup() {
 						1,			// Major version number
 						0,			// Minor version number
 						3,			// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-						81,			// Build number, from SVC system
+						84,			// Build number, from SVC system
 						1000,		// Flowmeter pulse factor, pulses in 1 ltr				(1000)
+						10,			// Flow meter volume factor, milliltrs in 1 pulse		(1)
 						100,		// DFM-MS main loop period, millis						(200)
 						2000,		// Debug print period									(2000)
-						1000,		// Interval for calculate instant flow Q, millis		(1000)
+						500,		// Interval for calculate instant flow Q, millis		(1000)
 						1000,		// Delay between coordinate updates (GPS)				(1000)
-						22,			// Type of RHT DHT sensor: DHT21, DHT22, DHT11			(11, 21, 22)						
+						22,			// Type of RHT DHT sensor: DHT21, DHT22, DHT11			(11, 21, 22)
+						02,			// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
 	};
 	
 	// Write data 
@@ -50,11 +54,13 @@ void setup() {
 	Serial.print("\t VerStatus \t\t");		Serial.println(myData.m_nVerStatus);
 	Serial.print("\t VerBuild \t\t");		Serial.println(myData.m_nVerBuild);
 	Serial.print("\t PulseFactor \t\t");	Serial.println(myData.m_dwPulseFactor);
+	Serial.print("\t VolumeFactor \t\t");	Serial.println(myData.m_nVolumeFactor);
 	Serial.print("\t LoopMSPeriod \t\t");	Serial.println(myData.m_lLoopMSPeriod);
 	Serial.print("\t DbgPrnPeriod \t\t");	Serial.println(myData.m_lDebugPrnPeriod);
 	Serial.print("\t Int4CalcQ \t\t");		Serial.println(myData.m_lInt4CalcQ);
 	Serial.print("\t lCoordUpdPeriod \t");	Serial.println(myData.m_lCoordUpdPeriod);
 	Serial.print("\t TypeRHTSensor \t\t");	Serial.println(myData.m_nTypeRHTSensor);
+	Serial.print("\t TypeDevOnPIN2 \t\t");	Serial.println(myData.m_nTypeDevOnPIN2);
 
 	// Clear EEPROM
 	if (isClearEEPROM) {
@@ -75,11 +81,13 @@ void setup() {
 	Serial.print("\t VerStatus \t\t");		Serial.println(myData.m_nVerStatus);
 	Serial.print("\t VerBuild \t\t");		Serial.println(myData.m_nVerBuild);
 	Serial.print("\t PulseFactor \t\t");	Serial.println(myData.m_dwPulseFactor);
+	Serial.print("\t VolumeFactor \t\t");	Serial.println(myData.m_nVolumeFactor);
 	Serial.print("\t LoopMSPeriod \t\t");	Serial.println(myData.m_lLoopMSPeriod);
 	Serial.print("\t DbgPrnPeriod \t\t");	Serial.println(myData.m_lDebugPrnPeriod);
 	Serial.print("\t Int4CalcQ \t\t");		Serial.println(myData.m_lInt4CalcQ);
 	Serial.print("\t lCoordUpdPeriod \t");	Serial.println(myData.m_lCoordUpdPeriod);
 	Serial.print("\t TypeRHTSensor \t\t");	Serial.println(myData.m_nTypeRHTSensor);
+	Serial.print("\t TypeDevOnPIN2 \t\t");	Serial.println(myData.m_nTypeDevOnPIN2);
 }
 
 void loop() { }

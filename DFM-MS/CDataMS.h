@@ -31,14 +31,14 @@ protected:
 				BYTE	m_bStatus;			// Status bits									1
 				struct
 				{
-					INT	m_btReceiveError		: 1;// 0 - receive data error
-					INT	m_btRHTSensorError		: 1;// 1 - RHT sensor alarm
-					INT	m_btTempSensorError		: 1;// 2 - temperature sensor alarm
-					INT m_btEMFM_FQH			: 1;// 3 - flow high limit alarm
-					INT m_btEMFM_FQL			: 1;// 4 - flow low limit alarm
-					INT m_btGPSError			: 1;// 5 - GPS module alarm
-					INT	m_btNU1					: 1;// 6 - not used
-					INT m_btTestRun				: 1;// 7 - test run bit: 1 - test is run, 0 - test not run
+					WORD m_btReceiveError		: 1;// 0 - receive data error
+					WORD m_btRHTSensorError		: 1;// 1 - RHT sensor alarm
+					WORD m_btTempSensorError	: 1;// 2 - temperature sensor alarm
+					WORD m_btNU3				: 1;// 3 - not used
+					WORD m_btNU4				: 1;// 4 - not used
+					WORD m_btGPSError			: 1;// 5 - GPS module alarm
+					WORD m_btButtonState		: 1;// 6 - Ext BUTTON state: 1 - pressed, 0 - initial state
+					WORD m_btTestRun			: 1;// 7 - Test run bit: 1 - test is run, 0 - test not run
 				};
 			};
 			FLOAT	m_fTemprAir;	// Temperature of air, C							4
@@ -77,10 +77,9 @@ public:
 	INT		Get_btReceiveError()	const	{ return m_btReceiveError;		}
 	INT		Get_btRHTSensorError()	const	{ return m_btRHTSensorError;	}
 	INT		Get_btTempSensorError()	const	{ return m_btTempSensorError;	}
-	INT		Get_btEMFM_FQH()		const	{ return m_btEMFM_FQH;			}
-	INT		Get_btEMFM_FQL()		const	{ return m_btEMFM_FQL;			}
 	INT		Get_btGPSError()		const	{ return m_btGPSError;			}
 	INT		Get_btTestRun()			const	{ return m_btTestRun;			}
+	INT		Get_btButtonState()		const	{ return m_btButtonState;		}
 
 	// --- MODIFYING methods
 	BYTE*	GetDataMS()					{ return m_pDataMS; }
@@ -104,10 +103,9 @@ public:
 	void	Set_btReceiveError(INT bit)		{ m_btReceiveError = bit;		}
 	void	Set_btRHTSensorError(INT bit)	{ m_btRHTSensorError = bit;		}
 	void	Set_btTempSensorError(INT bit)	{ m_btTempSensorError = bit;	}
-	void	Set_btEMFM_FQH(INT bit)			{ m_btEMFM_FQH = bit;			}
-	void	Set_btEMFM_FQL(INT bit)			{ m_btEMFM_FQL = bit;			}
 	void	Set_btGPSError(INT bit)			{ m_btGPSError = bit;			}
 	void	Set_btTestRun(INT bit)			{ m_btTestRun = bit;			}
+	void	Set_btButtonState(INT bit)		{ m_btButtonState = bit;		}
 };
 
 ///////////////////////////////////////////////////////

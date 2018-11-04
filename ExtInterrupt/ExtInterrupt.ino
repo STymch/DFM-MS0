@@ -6,7 +6,7 @@
 
 const long  DR_HARDWARE_COM = 38400;	// Data rate for hardware COM, bps
 const int	LED = 13;
-const int	EXT_INT = 3;
+const int	EXT_INT = 2;
 
 bool isReadPulseDuration = false;	// Flag for read pulse duration
 unsigned long lPulseDuration;		// Pulse duration
@@ -20,7 +20,7 @@ void setup()
 {
 	pinMode(LED, OUTPUT);
 	pinMode(EXT_INT, INPUT);
-	attachInterrupt(1, blink, FALLING); // 0 = pin 2, 1 = pin 3
+	attachInterrupt(0, blink, CHANGE); // 0 = pin 2, 1 = pin 3
 	
 	Serial.begin(DR_HARDWARE_COM);
 }
@@ -36,10 +36,10 @@ void loop()
 	Serial.println("Waiting command...");
 
 	while (Serial.available() <= 0) {
-		if (isReadPulseDuration) {
-			lPulseDuration = pulseIn(EXT_INT, HIGH);
-			Serial.print("\tPulse, mcs = ");	Serial.println(lPulseDuration);
-		}
+//		if (isReadPulseDuration) {
+//			lPulseDuration = pulseIn(EXT_INT, HIGH);
+//			Serial.print("\tPulse, mcs = ");	Serial.println(lPulseDuration);
+//		}
 	};
 
 	Serial.print("PRESSED: ");
@@ -65,4 +65,5 @@ void blink()
 {
 	state = !state;
 	lCount++;
+	Serial.println("PRESS");
 }

@@ -34,7 +34,7 @@
 #include "CGPS.h"
 #include "CLED.h"
 #include "CDataEEPROM.h"
-
+#include "CButton.h"
 
 // ---===--- Global constants ---===---
 // Arduino analog GPIO
@@ -42,16 +42,17 @@ const INT   POWER_INPUT_PIN = 0;			// Power analog input pin
 
 // Arduino digital GPIO
 const INT   EXT_LED_PIN		= 2;			// External LED ootput pin
+const INT   EXT_BUTTON_PIN	= 2;			// External Button input pin
 const INT	EMFM_PIN		= 3;			// EMFM digital out input pin
 const INT   POWER_ON_OFF_PIN= 4;			// Power ON/OFF output pin
 const INT   TEMP_PIN		= 5;			// Temperature sensor DS18B20 DQ out input pin
 const INT   ALM_FQH_PIN		= 6;			// EEMFM FQH ALARM out input pin
 const INT   ALM_FQL_PIN		= 7;			// EEMFM FQL ALARM out input pin
 const INT	DHTxx_PIN		= 8;			// RHT sensor DHTxx input pin 
-const INT	RX_PIN_BT		= SS;			// Software UART RX pin, connect to TX of Bluetooth HC-0x 
-const INT	TX_PIN_BT		= MOSI;			// Software UART TX pin, connect to RX of Bluetooth HC-0x
-const INT	RX_PIN_GPS		= MISO;			// Software UART RX pin, connect to TX of serial GPS module 
-const INT	TX_PIN_GPS		= LED_BUILTIN;	// Software UART TX pin, connect to RX of serial GPS module
+const INT	RX_PIN_BT		= 10;			// Software UART RX pin, connect to TX of Bluetooth HC-0x 
+const INT	TX_PIN_BT		= 11;			// Software UART TX pin, connect to RX of Bluetooth HC-0x
+const INT	RX_PIN_GPS		= 12;			// Software UART RX pin, connect to TX of serial GPS module 
+const INT	TX_PIN_GPS		= 13;			// Software UART TX pin, connect to RX of serial GPS module
 const INT   INT_LED_PIN		= LED_BUILTIN;	// Internal LED output pin
 
 // Serial ports parameters
@@ -69,6 +70,10 @@ const INT	ST_BIT_OK			= 0;// Status bit: no error state
 const INT	ST_BIT_ERR			= 1;// Status bit: error state
 const INT	ST_BIT_TEST_RUN		= 1;// Status bit test run: test is running
 const INT	ST_BIT_TEST_NOT_RUN	= 0;// Status bit test run: test is not running
+const INT	ST_BIT_BUTTON_ON	= 1;// Status bit BUTTON ON (PRESSED)
+const INT	ST_BIT_BUTTON_OFF	= 0;// Status bit BUTTON OFF (NOT PRESSED)
+const INT	BUTTON_PRESSED		= 2;// BUTTON PRESSED
+
 
 // ---===--- Global variables ---===---
 // Application name
@@ -77,7 +82,7 @@ CHAR	strAppName[] = "DFM-MS ";
 UINT	nVerMaj		= 1;	// Major version number
 UINT	nVerMin		= 0;	// Minor version number
 UINT	nVerStatus	= 3;	// Status number: 0 - alfa, 1 - beta, 2 - RC, 3 - RTM
-UINT	nVerBuild	= 81;	// Build number, from SVC system
+UINT	nVerBuild	= 82;	// Build number, from SVC system
 CHAR	strVer[30]	= "";	// Application version full information
 
 // Counters of EMFM pulses
@@ -103,6 +108,11 @@ void	(*pISR)();					// Pointer to ISR callback function of EMFM pulse out
 // Sensors parameters
 INT		nTypeRHTSensor = snsrDHT21;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
 INT		nStGPS = -1;				// State of GPS subsystem: -1 - module not present; 1 - module present, no location data; 0 - success, present location data
+
+// Parameters of device on PIN2
+INT		nTypeDevOnPIN2 = 0;			// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
+INT		nButtonPressWidth = 500;	// Width in millisec of external button press for Pulse type
+INT		nBUTTON_INT_MODE = CHANGE;	// Mode of interrupt of external button: LOW, CHANGE, RISING, FALLING
 
 // Flags
 volatile BOOL	isTestRun = false;	// Test state flag: true - test is running, false - test not running now
@@ -136,6 +146,9 @@ CGPS				*pGPS;
 // --==-- Power DC Control object
 CPowerDC			*pPowerDC;
 
+// --==-- External button of DFM-MS object
+CButton		*pButton;
+
 // --==-- LED objects
 CLED				*pInt_LED;	// Internal LED
 CLED				*pExt_LED;	// External LED
@@ -155,7 +168,9 @@ void setup()
 			fLongitude = -1.0;		// GPS Longitude
 	INT		nLEDStateInit = LOW;	// Init LEDs state
 	INT		rc;						// return code
-	CHAR	strTemp[6];				// temporary string	// --==-- Hardware serial port
+	CHAR	strTemp[6];				// temporary string
+
+	// --==-- Hardware serial port
 	// Set the data rate and open
 	Serial.begin(DR_HARDWARE_COM);
 
@@ -207,14 +222,46 @@ void setup()
 
 	// Set Power DC value
 	pDataMS->SetPowerU(pPowerDC->GetPowerDC());
-
+	
+	// Set time
+	pDataMS->SetTime(millis());
+	
 	// --==-- Receive commands object
 	// Create object
 	pCmndMS = new CCmndMS;
 
-	// --==-- LEDs 
+	// --==-- LEDs
 	pInt_LED = new CLED(INT_LED_PIN, nLEDStateInit);
-	pExt_LED = new CLED(EXT_LED_PIN, nLEDStateInit);
+	pExt_LED = NULL;
+
+	// Device on PIN2 object
+	STP_PRN_LOGO(strAppName, strVer);	STP_PRN(F(": SUBSYSTEM -> PIN 2 DEVICE:"));
+	// 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
+	switch (nTypeDevOnPIN2) { 
+		case 01: {	// PULSE - LOW Button
+			pButton = new CButton(EXT_BUTTON_PIN, LOW, nButtonPressWidth, nBUTTON_INT_MODE, ISR_ButtonPulse);
+			break;
+		}
+		case 11: {	// PULSE - HIGH Button
+			pButton = new CButton(EXT_BUTTON_PIN, HIGH, nButtonPressWidth, nBUTTON_INT_MODE, ISR_ButtonPulse);
+			break;
+		}
+		case 02: {	// DRY CONTACT - LOW Button
+			pButton = new CButton(EXT_BUTTON_PIN, LOW, nButtonPressWidth, nBUTTON_INT_MODE, ISR_ButtonDryContact);
+			break;
+		}
+		case 22: {	// DRY CONTACT - HIGH Button
+			pButton = new CButton(EXT_BUTTON_PIN, HIGH, nButtonPressWidth, nBUTTON_INT_MODE, ISR_ButtonDryContact);
+			break;
+		}
+
+		default: {	// External LED
+			nTypeDevOnPIN2 = 0;
+			pExt_LED = new CLED(EXT_LED_PIN, nLEDStateInit);
+			break;
+		}
+	}
+	STP_PRN(F("\t\t PASSED")); STP_PRN(F("\t\t TYPE: "));	STP_PRN(nTypeDevOnPIN2);
 
 	// --==-- Flowmeter EMFM
 	// Create object
@@ -240,7 +287,7 @@ void setup()
 		STP_PRN(F("\t Humidity (%): "));	STP_PRN(fRHumidityAir, 1);
 	}
 	else {
-		STP_PRN(F("\t\t NOT DETECTED! \t MODEL: ")); STP_PRN(pRHTSensor->GetSensorModel());
+		STP_PRN(F("\t NOT DETECTED! \t MODEL: ")); STP_PRN(pRHTSensor->GetSensorModel());
 	}
 
 	pDataMS->Set_btRHTSensorError(!rc ? ST_BIT_OK : ST_BIT_ERR);	// set status bit RHT sensor
@@ -295,7 +342,7 @@ void setup()
 void loop() {
 	// Loops counter
 	static DWORD	lCounterLoops = 0;
-	// Flag - was there a data request from DFM-CP
+	// Flag - was there a data request from DFM-CP, using when get GPS data
 	static BOOL isReqDataGet = false;
 
 	// For save copy of isReqData
@@ -313,7 +360,7 @@ void loop() {
 
 	// Read and execute command from DFM-CP BT serial port
 	INT rc = ::BTSerialReadCmnd();
-
+	
 	// Check request data flag
 	COPY_NOINT(isReqDataCpy, isReqData);
 	if (isReqDataCpy) { // Set data for DataMS packet and write it into serial port
@@ -338,21 +385,26 @@ void loop() {
 		pEMFM->SetCounterDec(dwCounterPulseDecCpy);
 		pEMFM->SetTime(lTimeCurr);
 
-		// Save counters, time and flow in data packet
+		// Save counters flow in data packet
 		pDataMS->SetCounterInc(dwCounterPulseIncCpy);
 		pDataMS->SetCounterDec(dwCounterPulseDecCpy);
-		pDataMS->SetTime(lTimeCurr);
 		pDataMS->SetQ(pEMFM->GetQ());
+
+		// Save time in data packet if No Button present or Button ON
+		if (nTypeDevOnPIN2 == 0) pDataMS->SetTime(lTimeCurr);
 
 		// Write data into BT serial port
 		pBTSerialPort->Write(pDataMS->GetDataMS(), DATA_LEN + 1);
 
 		// Set flag - was there a data request from DFM-CP
 		isReqDataGet = true;
+
+		// Save time in data packet if No Button present or Button ON
+		if ((nTypeDevOnPIN2 != 0) && (pDataMS->Get_btButtonState() == ST_BIT_BUTTON_ON)) pDataMS->SetTime(millis());
 	}
 
-	// GPS subsystem: get location
-	if (lCounterLoops % (lCoordUpdPeriod / lLoopMSPeriod) == 0 && !isReqDataGet && nStGPS != 0)
+	// GPS subsystem: get location when no data request from DFM-CP
+/*	if (lCounterLoops % (lCoordUpdPeriod / lLoopMSPeriod) == 0 && !isReqDataGet && nStGPS != 0)
 	{
 		FLOAT fLatitude, fLongitude; // Latitude, longitude
 
@@ -387,10 +439,10 @@ void loop() {
 		// Blink external LED
 		if (lCounterLoops % (factor * lCoordUpdPeriod / lLoopMSPeriod) == 0) {
 			pInt_LED->Blink();
-			pExt_LED->Blink();
+			if (pExt_LED != NULL) pExt_LED->Blink();
 		}
 	}
-
+*/
 	// Calculate time interval from start loop
 	DWORD lTimeInt = millis() - lTimeBegin;
 
@@ -399,7 +451,7 @@ void loop() {
 
 #ifdef _DEBUG_TRACE
 	// Get data from sensors T, RHT of air, GPS
-	if (lCounterLoops % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isTestRun)
+/*	if (lCounterLoops % (lGetSensorsPeriod / lLoopMSPeriod) == 0 && !isTestRun)
 	{
 		// Read RHT
 		FLOAT	fTAir;			// Air Temperature
@@ -414,7 +466,7 @@ void loop() {
 		pDataMS->Set_btTempSensorError(!pTemperatureSensor->GetTemperature(fTWater) ? ST_BIT_OK : ST_BIT_ERR);
 		pDataMS->SetTemprWater(fTWater);
 	}
-
+*/
 	// Read and execute command from serial console (hardware COM) 
 	::SerialReadCmnd();
 
@@ -449,6 +501,54 @@ void ISR_FlowmeterPulseOut()
 			isReqData = true;	// set request data flag
 		}
 	}
+}
+///////////////////////////////////////////////////////////////
+// ISR callback function for external button: Pulse type, antitinkling is on
+///////////////////////////////////////////////////////////////
+void ISR_ButtonPulse()
+{
+	// Read Button pin state - is pin state is front?
+	if (pButton->isPressFront())			// Button press begin
+		pButton->SetTStartPress(millis());	// Save time of button press begin
+	else	// Button press end, check correct width of button press 
+		if (pButton->isPress(millis()))		// Button press correct
+		{
+			// Change Butoons State
+			pDataMS->Set_btButtonState(!pDataMS->Get_btButtonState() ? 1 : 0);
+			
+			// Set request data flag
+			isReqData = true;
+		}
+}
+///////////////////////////////////////////////////////////////
+// ISR callback function for external button: Dry Contact type
+///////////////////////////////////////////////////////////////
+void ISR_ButtonDryContact()
+{
+	// Save time of button press begin
+	pDataMS->SetTime(millis());
+
+	// Read Button pin state - is pin state is front?
+	if (pButton->isPressFront())	// Button Press ON state
+	{
+		// Save time of button press begin
+//		pButton->SetTStartPress(millis());
+		
+		// Change Butoons State
+		pDataMS->Set_btButtonState(ST_BIT_BUTTON_ON);
+
+		// Set request data flag
+		isReqData = true;
+	}
+	else // Button Press OFF state
+//		if (pButton->isPress(millis()))		// Button press correct
+		{
+			// Change Butoons State
+			pDataMS->Set_btButtonState(ST_BIT_BUTTON_OFF);
+
+			// Set request data flag
+			isReqData = true;
+		}
 }
 
 ///////////////////////////////////////////////////////////////
@@ -646,6 +746,7 @@ void EEPROM_InitData(CDataEEPROM& data) {
 	data.m_Data.m_lInt4CalcQ = lInt4CalcQ;			// Interval for calculate instant flow Q, millis
 	data.m_Data.m_lCoordUpdPeriod = lCoordUpdPeriod;// Delay between coordinate updates (GPS)
 	data.m_Data.m_nTypeRHTSensor = nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+	data.m_Data.m_nTypeDevOnPIN2 = nTypeDevOnPIN2;	// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
 }
 ///////////////////////////////////////////////////////////////
 // Read data from EEPROM and save in global variables
@@ -673,6 +774,7 @@ INT EEPROM_ReadData(CDataEEPROM& data) {
 		lInt4CalcQ = data.m_Data.m_lInt4CalcQ;			// Interval for calculate instant flow Q, millis
 		lCoordUpdPeriod = data.m_Data.m_lCoordUpdPeriod;// Delay between coordinate updates (GPS)
 		nTypeRHTSensor = data.m_Data.m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+		nTypeDevOnPIN2 = data.m_Data.m_nTypeDevOnPIN2;	// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (Dry Contact, LOW, HIGH)
 	}
 	return rc;
 }
@@ -692,6 +794,7 @@ void EEPROM_PrintData(CDataEEPROM& data) {
 	STP_PRN(F(" Int4CalcQ \t\t"));		STP_PRNL(data.m_Data.m_lInt4CalcQ);
 	STP_PRN(F(" lCoordUpdPeriod \t"));	STP_PRNL(data.m_Data.m_lCoordUpdPeriod);
 	STP_PRN(F(" TypeRHTSensor \t\t"));	STP_PRNL(data.m_Data.m_nTypeRHTSensor);
+	STP_PRN(F(" TypeDevOnPIN2 \t\t"));	STP_PRNL(data.m_Data.m_nTypeDevOnPIN2);
 }
 
 #ifdef _DEBUG_TRACE
@@ -734,10 +837,16 @@ void SerialReadCmnd()
 					DBG_PRN(F("\t Pulse = "));				DBG_PRN((DWORD)(INIT_COUNTER - lCounterPulse), 10);
 					DBG_PRN(F("\t Elapsed time, ms = "));	DBG_PRN((DWORD)(lTimeStop - lTimeStart), 10);
 				}
-				isStopwatch = !isStopwatch;	// invert flag				break;
+				isStopwatch = !isStopwatch;	// invert flag
+				break;
 			}
 			case 49: { // 1: set request data flag
 				COPY_NOINT(isReqData, true);
+				break;
+			}
+			case 50: { // 2: set request data flag
+				// Change Butoons State
+				pDataMS->Set_btButtonState(!pDataMS->Get_btButtonState() ? 1 : 0);
 				break;
 			}
 		}

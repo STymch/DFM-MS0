@@ -26,11 +26,13 @@ protected:
 		UINT	m_nVerStatus;		// Status number: 0 - alpha, 1 - beta, 2 - RC, 3 - RTM
 		UINT	m_nVerBuild;		// Build number, from SVC system
 		DWORD	m_dwPulseFactor;	// Flow meter pulse factor, pulses in 1 ltr
+		INT		m_nVolumeFactor;	// Flow meter volume factor, milliltrs in 1 pulse
 		DWORD	m_lLoopMSPeriod;	// DFM-MS main loop period, millis
 		DWORD	m_lDebugPrnPeriod;	// Debug print period
 		DWORD	m_lInt4CalcQ;		// Interval for calculate instant flow Q, millis
 		DWORD	m_lCoordUpdPeriod;	// Delay between coordinate updates (GPS)
-		WORD	m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11
+		WORD	m_nTypeRHTSensor;	// Type of RHT DHT sensor: DHT21, DHT22, DHT11 (11, 21, 22)
+		WORD	m_nTypeDevOnPIN2;	// Type of device on PIN2: 00 - LED, 01,11 - Button (Pulse, LOW, HIGH), 02,12 - Button (State, LOW, HIGH)
 	} m_Data;
 
  public:

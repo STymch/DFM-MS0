@@ -1,5 +1,0 @@
-﻿  stdafx.cpp
-  ConsoleApplication.cpp
-d:\cloud\onedrive\work\github\dfm-ms\consoleapplication\consoleapplication.cpp(20): error C3861: 'TestPrintf': identifier not found
-d:\cloud\onedrive\work\github\dfm-ms\consoleapplication\consoleapplication.cpp(31): warning C4305: 'initializing': truncation from 'double' to 'float'
-d:\cloud\onedrive\work\github\dfm-ms\consoleapplication\consoleapplication.cpp(44): error C3861: 'getch': identifier not found
